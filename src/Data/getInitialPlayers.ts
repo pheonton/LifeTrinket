@@ -232,6 +232,7 @@ export const createInitialPlayers = ({
       isSide: rotation === Rotation.Side || rotation === Rotation.SideFlipped,
       name: '',
       deckName: '',
+      commanderName: '',
       isMonarch: false,
     };
 

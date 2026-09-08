@@ -241,6 +241,34 @@ Cross-game statistics keyed by deck name, persisted in `localStorage` under
 - **State**: `deckStats` / `recordGame` / `clearDeckStats` / `deleteDeck` on
   `GlobalSettingsContext`, implemented in `GlobalSettingsProvider`.
 
+## Commander Art
+
+Purely cosmetic: in Commander games (`player.settings.useCommanderDamage`) a
+player card shows the commander's card art instead of the flat colour.
+
+- **Entry**: a "Commander" field in the deck-name dialog
+  (`src/Components/Players/PlayerMenu.tsx`), shown only for commander games,
+  with a live Scryfall search + thumbnail. Committed to `player.commanderName`
+  on dialog close - same lifecycle as `deckName` (persists across games in a
+  match, rides along in the QR-share / saved game). Nothing else is stored.
+- **Fetch**: `src/Utils/scryfall.ts` (`fetchCommanderArt`, fuzzy
+  `api.scryfall.com/cards/named`, in-memory result + in-flight cache, never
+  throws) behind `src/Hooks/useCommanderArt.ts` (debounced, derives state from
+  the shared cache during render). The image URL is `art_crop`.
+- **Render**: `LifeCounter` reads `useCommanderArt(player.commanderName)` and,
+  when there's a URL, lays an art layer + `bg-black/40` scrim behind the
+  `z-[1]` content in `LifeCounterContentWrapper`. The art layer is a
+  container-query square (`max(100cqw,100cqh)`) rotated by
+  `player.settings.rotation` so it faces the player and still covers the cell.
+  Over the scrim, `iconTheme` is forced to `'light'` (`displayPlayer`) and
+  `Health` gets `hasCommanderArt` to firm up its label.
+- **Fallback**: offline / not found / non-commander → no art layer → the
+  existing flat `player.color`, unchanged.
+- **PWA**: `vite.config.ts` `runtimeCaching` caches `cards.scryfall.io` images
+  (CacheFirst) and `api.scryfall.com` lookups (NetworkFirst).
+- A future CSP in `public/_headers` must allow `connect-src api.scryfall.com`
+  and `img-src cards.scryfall.io`.
+
 ## Analytics
 
 `src/Hooks/useAnalytics.ts` exposes `useAnalytics().trackEvent(name, params)`,

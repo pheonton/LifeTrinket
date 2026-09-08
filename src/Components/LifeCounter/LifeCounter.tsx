@@ -19,6 +19,7 @@ import ExtraCountersBar from '../Counters/ExtraCountersBar';
 import PlayerMenu from '../Players/PlayerMenu';
 import { StartingPlayerCard } from '../PreStartGame/StartingPlayerCard';
 import Health from './Health';
+import { useCommanderArt } from '../../Hooks/useCommanderArt';
 
 const SettingsButtonTwc = twc.button<RotationButtonProps>((props) => [
   'absolute flex-grow border-none outline-none cursor-pointer bg-transparent z-[1] select-none  webkit-user-select-none opacity-50',
@@ -75,7 +76,7 @@ const SettingsButton = ({
 };
 
 const LifeCounterContentWrapper = twc.div`
-  relative flex flex-grow flex-col items-center w-full h-full overflow-hidden`;
+  relative flex flex-grow flex-col items-center w-full h-full overflow-hidden [container-type:size]`;
 
 const LifeCounterWrapper = twc.div<RotationDivProps>((props) => [
   'relative flex items-center w-full h-full z-[1]',
@@ -128,6 +129,15 @@ type LifeCounterProps = {
 const LifeCounter = ({ player, opponents, matchScore }: LifeCounterProps) => {
   const { updatePlayer, updateLifeTotal } = usePlayers();
   const { settings, playing, addLifeHistoryEvent } = useGlobalSettings();
+
+  const { artUrl: commanderArtUrl } = useCommanderArt(
+    player.settings.useCommanderDamage ? player.commanderName : ''
+  );
+  // Over the dark art scrim, always render icons/labels light regardless of
+  // the player's chosen colour.
+  const displayPlayer: Player = commanderArtUrl
+    ? { ...player, iconTheme: 'light' }
+    : player;
   const metrics = useMetrics();
   const userActions = useUserActions();
   const recentDifferenceTimerRef = useRef<NodeJS.Timeout | undefined>(
@@ -310,6 +320,26 @@ const LifeCounter = ({ player, opponents, matchScore }: LifeCounterProps) => {
 
   return (
     <LifeCounterContentWrapper style={{ background: player.color }}>
+      {commanderArtUrl && (
+        <>
+          {/* Square sized to the longer edge so it still covers the cell after
+              being rotated to face this player. */}
+          <div
+            aria-hidden
+            className="absolute left-1/2 top-1/2 z-0 -translate-x-1/2 -translate-y-1/2 bg-center bg-cover pointer-events-none"
+            style={{
+              width: 'max(100cqw, 100cqh)',
+              height: 'max(100cqw, 100cqh)',
+              rotate: `${player.settings.rotation}deg`,
+              backgroundImage: `url("${commanderArtUrl}")`,
+            }}
+          />
+          <div
+            aria-hidden
+            className="absolute inset-0 z-0 bg-black/40 pointer-events-none"
+          />
+        </>
+      )}
       <LifeCounterWrapper
         $rotation={player.settings.rotation}
         style={{ rotate: `${calcRotation}deg` }}
@@ -352,7 +382,7 @@ const LifeCounter = ({ player, opponents, matchScore }: LifeCounterProps) => {
               setShowPlayerMenu(!showPlayerMenu);
             }}
             rotation={player.settings.rotation}
-            iconTheme={player.iconTheme}
+            iconTheme={displayPlayer.iconTheme}
           />
         )}
         {playerCanLose(player) && (
@@ -362,14 +392,15 @@ const LifeCounter = ({ player, opponents, matchScore }: LifeCounterProps) => {
           />
         )}
         <Health
-          player={player}
+          player={displayPlayer}
           rotation={player.settings.rotation}
           differenceKey={differenceKey}
           recentDifference={recentDifference}
           handleLifeChange={handleLifeChange}
+          hasCommanderArt={!!commanderArtUrl}
         />
 
-        <ExtraCountersBar player={player} />
+        <ExtraCountersBar player={displayPlayer} />
         <PlayerMenu
           isShown={showPlayerMenu}
           player={player}

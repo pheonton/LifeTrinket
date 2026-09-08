@@ -62,6 +62,37 @@ export default defineConfig({
                 statuses: [0, 200]
               }
             }
+          },
+          {
+            // Commander card art (cosmetic). Immutable once fetched.
+            urlPattern: /^https:\/\/cards\.scryfall\.io\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'commander-art-cache',
+              expiration: {
+                maxEntries: 60,
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            // Scryfall card lookups - keep working offline after first use.
+            urlPattern: /^https:\/\/api\.scryfall\.com\/cards\/named.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'scryfall-api-cache',
+              networkTimeoutSeconds: 5,
+              expiration: {
+                maxEntries: 60,
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 1 week
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
           }
         ]
       },

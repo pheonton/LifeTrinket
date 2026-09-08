@@ -12,6 +12,7 @@ export type Player = {
   isSide: boolean;
   name: string;
   deckName: string;
+  commanderName: string;
 };
 
 export type PlayerSettings = {

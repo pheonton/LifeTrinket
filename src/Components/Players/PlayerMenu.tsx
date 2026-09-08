@@ -23,6 +23,7 @@ import {
 } from '../../Icons/generated';
 import { Player, Rotation } from '../../Types/Player';
 import { normalizeDeckName } from '../../Types/DeckStats';
+import { useCommanderArt } from '../../Hooks/useCommanderArt';
 import { PreStartMode } from '../../Types/Settings';
 import { RotationDivProps } from '../Buttons/CommanderDamage';
 import { IconCheckbox } from '../Misc/IconCheckbox';
@@ -115,6 +116,9 @@ const PlayerMenu = ({
   const deckNameDialogRef = useRef<HTMLDialogElement | null>(null);
   const deckNameInputRef = useRef<HTMLInputElement | null>(null);
   const [deckNameQuery, setDeckNameQuery] = useState('');
+  const commanderInputRef = useRef<HTMLInputElement | null>(null);
+  const [commanderQuery, setCommanderQuery] = useState('');
+  const commander = useCommanderArt(commanderQuery);
 
   const { isSide } = useSafeRotate({
     rotation: player.settings.rotation,
@@ -229,18 +233,27 @@ const PlayerMenu = ({
 
   const openDeckNameDialog = () => {
     setDeckNameQuery(player.deckName);
+    setCommanderQuery(player.commanderName);
     if (deckNameInputRef.current) {
       deckNameInputRef.current.value = player.deckName;
+    }
+    if (commanderInputRef.current) {
+      commanderInputRef.current.value = player.commanderName;
     }
     deckNameDialogRef.current?.show();
   };
 
-  // The dialog has no save button - whatever is in the field when it closes
-  // (via the X, a chip, or a tap outside) becomes the deck name.
-  const commitDeckName = () => {
-    const next = (deckNameInputRef.current?.value ?? '').trim();
-    if (next !== player.deckName) {
-      updatePlayer({ ...player, deckName: next });
+  // The dialog has no save button - whatever is in the fields when it closes
+  // (via the X, a chip, or a tap outside) becomes the deck name / commander.
+  const commitDeckDialog = () => {
+    const nextDeck = (deckNameInputRef.current?.value ?? '').trim();
+    const nextCommander = (commanderInputRef.current?.value ?? '').trim();
+    if (nextDeck !== player.deckName || nextCommander !== player.commanderName) {
+      updatePlayer({
+        ...player,
+        deckName: nextDeck,
+        commanderName: nextCommander,
+      });
     }
   };
 
@@ -781,7 +794,7 @@ const PlayerMenu = ({
 
         <dialog
           ref={deckNameDialogRef}
-          onClose={commitDeckName}
+          onClose={commitDeckDialog}
           className="z-[999] size-full bg-background-settings overflow-y-scroll"
           onClick={() => deckNameDialogRef.current?.close()}
         >
@@ -837,6 +850,57 @@ const PlayerMenu = ({
                     </span>
                   )}
                 </div>
+              )}
+
+              {player.settings.useCommanderDamage && (
+                <>
+                  <span
+                    className="text-text-secondary font-semibold mt-1"
+                    style={{ fontSize: buttonFontSize }}
+                  >
+                    Commander (shows card art)
+                  </span>
+                  <input
+                    ref={commanderInputRef}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onChange={(e) => setCommanderQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter')
+                        deckNameDialogRef.current?.close();
+                    }}
+                    placeholder="e.g. Atraxa, Praetors' Voice"
+                    className="bg-secondary-main text-text-primary rounded-lg px-2 py-1.5 border border-primary-dark outline-none"
+                    style={{ fontSize: buttonFontSize }}
+                  />
+                  <div
+                    className="flex items-center gap-2 min-h-[8vmin]"
+                    style={{ fontSize: buttonFontSize }}
+                  >
+                    {commander.status === 'loading' && (
+                      <span className="text-text-secondary italic">
+                        Searching Scryfall...
+                      </span>
+                    )}
+                    {commander.status === 'found' && commander.artUrl && (
+                      <>
+                        <img
+                          src={commander.artUrl}
+                          alt=""
+                          className="h-[8vmin] w-[12vmin] object-cover rounded-md border border-primary-dark"
+                        />
+                        <span className="text-text-primary">
+                          {commander.cardName}
+                        </span>
+                      </>
+                    )}
+                    {commander.status === 'notfound' &&
+                      commanderQuery.trim() !== '' && (
+                        <span className="text-text-secondary italic">
+                          No card found - the card art won&apos;t show.
+                        </span>
+                      )}
+                  </div>
+                </>
               )}
             </div>
           </div>

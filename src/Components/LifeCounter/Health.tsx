@@ -44,6 +44,7 @@ type HealthProps = {
   handleLifeChange: (updatedLifeTotal: number) => void;
   differenceKey: number;
   recentDifference: number;
+  hasCommanderArt?: boolean;
 };
 
 const Health = ({
@@ -51,6 +52,7 @@ const Health = ({
   handleLifeChange,
   differenceKey,
   recentDifference,
+  hasCommanderArt = false,
 }: HealthProps) => {
   const [fontSize, setFontSize] = useState(16);
   const textContainerRef = useRef<HTMLDivElement | null>(null);
@@ -106,6 +108,11 @@ const Health = ({
     player.settings.rotation === Rotation.SideFlipped ||
     player.settings.rotation === Rotation.Side;
 
+  // Over commander art the faint label needs more presence and a shadow.
+  const nameLabelClass = hasCommanderArt
+    ? 'opacity-95 [text-shadow:0_1px_4px_rgba(0,0,0,0.9)]'
+    : 'opacity-50';
+
   return (
     <LifeContainer $rotation={player.settings.rotation}>
       {settings.useMonarch && <MonarchCrown player={player} />}
@@ -127,8 +134,8 @@ const Health = ({
           <div className="fixed flex justify-center -rotate-90 left-[5.4vmax]">
             <div
               data-contrast={player.iconTheme}
-              className="absolute flex flex-col items-center gap-[0.2vmin] opacity-50 text-center text-nowrap
-              data-[contrast=dark]:text-icons-dark data-[contrast=light]:text-icons-light"
+              className={`absolute flex flex-col items-center gap-[0.2vmin] text-center text-nowrap
+              data-[contrast=dark]:text-icons-dark data-[contrast=light]:text-icons-light ${nameLabelClass}`}
             >
               {player.name && (
                 <span className="text-[4vmin] font-bold leading-none">
@@ -145,8 +152,8 @@ const Health = ({
         ) : (
           <div
             data-contrast={player.iconTheme}
-            className="absolute -top-[1.1vmin] flex flex-col items-center gap-[0.2vmin] opacity-50 text-center
-            data-[contrast=dark]:text-icons-dark data-[contrast=light]:text-icons-light"
+            className={`absolute -top-[1.1vmin] flex flex-col items-center gap-[0.2vmin] text-center
+            data-[contrast=dark]:text-icons-dark data-[contrast=light]:text-icons-light ${nameLabelClass}`}
           >
             {player.name && (
               <span className="text-[4vmin] font-bold leading-none">

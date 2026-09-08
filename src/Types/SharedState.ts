@@ -37,6 +37,7 @@ export const playerSchema = z.object({
   isSide: z.boolean(),
   name: z.string(),
   deckName: z.string().optional().default(''),
+  commanderName: z.string().optional().default(''),
 });
 
 export const gameScoreSchema = z.record(z.string(), z.number());
