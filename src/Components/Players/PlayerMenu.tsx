@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { twc } from 'react-twc';
 import { useAnalytics } from '../../Hooks/useAnalytics';
 import { useMetrics } from '../../Hooks/useMetrics';
@@ -114,6 +114,7 @@ const PlayerMenu = ({
   const historyDialogRef = useRef<HTMLDialogElement | null>(null);
   const deckNameDialogRef = useRef<HTMLDialogElement | null>(null);
   const deckNameInputRef = useRef<HTMLInputElement | null>(null);
+  const [deckNameQuery, setDeckNameQuery] = useState('');
 
   const { isSide } = useSafeRotate({
     rotation: player.settings.rotation,
@@ -195,7 +196,8 @@ const PlayerMenu = ({
   };
 
   // Previously used deck names, from recorded stats plus decks the other
-  // players in this game already picked, sorted and de-duplicated.
+  // players in this game already picked. De-duplicated, most recently played
+  // first (decks without stats - e.g. another player's pick - sort last).
   const knownDecks = useMemo(() => {
     const byNormalized = new Map<string, string>();
     for (const stat of Object.values(deckStats)) {
@@ -208,10 +210,25 @@ const PlayerMenu = ({
         byNormalized.set(key, other.deckName.trim());
       }
     }
-    return [...byNormalized.values()].sort((a, b) => a.localeCompare(b));
+    const lastPlayed = (name: string) =>
+      deckStats[normalizeDeckName(name)]?.lastPlayed ?? 0;
+    return [...byNormalized.values()].sort(
+      (a, b) => lastPlayed(b) - lastPlayed(a) || a.localeCompare(b)
+    );
   }, [deckStats, players, player.index]);
 
+  // Chips shown in the dialog: filtered by what's typed, unless the field
+  // still holds an exact known name (just opened / just picked).
+  const visibleDecks = useMemo(() => {
+    const q = deckNameQuery.trim().toLowerCase();
+    if (q === '' || knownDecks.some((d) => d.toLowerCase() === q)) {
+      return knownDecks;
+    }
+    return knownDecks.filter((d) => d.toLowerCase().includes(q));
+  }, [knownDecks, deckNameQuery]);
+
   const openDeckNameDialog = () => {
+    setDeckNameQuery(player.deckName);
     if (deckNameInputRef.current) {
       deckNameInputRef.current.value = player.deckName;
     }
@@ -228,6 +245,7 @@ const PlayerMenu = ({
   };
 
   const pickDeck = (name: string) => {
+    setDeckNameQuery(name);
     if (deckNameInputRef.current) {
       deckNameInputRef.current.value = name;
     }
@@ -788,8 +806,8 @@ const PlayerMenu = ({
               </div>
               <input
                 ref={deckNameInputRef}
-                list={`known-decks-${player.index}`}
                 onFocus={(e) => e.currentTarget.select()}
+                onChange={(e) => setDeckNameQuery(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') deckNameDialogRef.current?.close();
                 }}
@@ -797,23 +815,27 @@ const PlayerMenu = ({
                 className="bg-secondary-main text-text-primary rounded-lg px-2 py-1.5 border border-primary-dark outline-none"
                 style={{ fontSize: buttonFontSize }}
               />
-              <datalist id={`known-decks-${player.index}`}>
-                {knownDecks.map((deck) => (
-                  <option value={deck} key={deck} />
-                ))}
-              </datalist>
               {knownDecks.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 max-h-[28vmin] overflow-y-auto">
-                  {knownDecks.map((deck) => (
-                    <button
-                      key={deck}
-                      onClick={() => pickDeck(deck)}
-                      className="bg-secondary-main text-text-primary rounded-full px-2 py-0.5 border border-primary-dark"
+                  {visibleDecks.length > 0 ? (
+                    visibleDecks.map((deck) => (
+                      <button
+                        key={deck}
+                        onClick={() => pickDeck(deck)}
+                        className="bg-secondary-main text-text-primary rounded-full px-2 py-0.5 border border-primary-dark"
+                        style={{ fontSize: buttonFontSize }}
+                      >
+                        {deck}
+                      </button>
+                    ))
+                  ) : (
+                    <span
+                      className="text-text-secondary italic"
                       style={{ fontSize: buttonFontSize }}
                     >
-                      {deck}
-                    </button>
-                  ))}
+                      No saved deck matches - it&apos;ll be added as new.
+                    </span>
+                  )}
                 </div>
               )}
             </div>
