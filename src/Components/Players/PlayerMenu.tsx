@@ -511,16 +511,21 @@ const PlayerMenu = ({
                 userSelect: 'none',
                 fontSize: buttonFontSize,
                 padding: '2px',
-                maxWidth: '14ch',
               }}
-              className="text-primary-main px-1 webkit-user-select-none cursor-pointer
+              className="text-primary-main webkit-user-select-none cursor-pointer
               data-[has-deck=true]:bg-secondary-dark rounded-lg border border-transparent
-              data-[has-deck=true]:border-primary-main truncate"
+              data-[has-deck=true]:border-primary-main flex flex-col items-center leading-none px-1"
               data-has-deck={player.deckName ? true : false}
               onClick={handleUpdateDeckName}
               aria-label="Deck name"
             >
-              {player.deckName || 'Deck'}
+              <NameTag size={iconSize} />
+              <span
+                className="max-w-[12ch] truncate"
+                style={{ fontSize: isSide ? '1vmax' : '1.6vmin' }}
+              >
+                {player.deckName || 'Deck'}
+              </span>
             </button>
 
             <button

@@ -123,23 +123,41 @@ const Health = ({
                 data-[is-side=true]:items-center data-[is-side=true]:justify-start
                 "
       >
-        {player.name && isSide ? (
+        {isSide ? (
           <div className="fixed flex justify-center -rotate-90 left-[5.4vmax]">
             <div
               data-contrast={player.iconTheme}
-              className="absolute text-[4vmin] opacity-50 font-bold text-center text-nowrap
+              className="absolute flex flex-col items-center gap-[0.2vmin] opacity-50 text-center text-nowrap
               data-[contrast=dark]:text-icons-dark data-[contrast=light]:text-icons-light"
             >
-              {player.name}
+              {player.name && (
+                <span className="text-[4vmin] font-bold leading-none">
+                  {player.name}
+                </span>
+              )}
+              {player.deckName && (
+                <span className="text-[2.8vmin] font-medium leading-none">
+                  {player.deckName}
+                </span>
+              )}
             </div>
           </div>
         ) : (
           <div
             data-contrast={player.iconTheme}
-            className="absolute text-[4vmin] -top-[1.1vmin] opacity-50 font-bold text-center
+            className="absolute -top-[1.1vmin] flex flex-col items-center gap-[0.2vmin] opacity-50 text-center
             data-[contrast=dark]:text-icons-dark data-[contrast=light]:text-icons-light"
           >
-            {player.name}
+            {player.name && (
+              <span className="text-[4vmin] font-bold leading-none">
+                {player.name}
+              </span>
+            )}
+            {player.deckName && (
+              <span className="text-[2.8vmin] font-medium leading-none">
+                {player.deckName}
+              </span>
+            )}
           </div>
         )}
       </div>
