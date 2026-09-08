@@ -21,15 +21,18 @@ bash scripts/create-release.sh
 3. **Warns about uncommitted changes** - Prompts for confirmation if you have uncommitted changes
 4. **Prompts for release description** - You can enter a multi-line description for the release
 5. **Creates an annotated git tag** with the version and description
-6. **Pushes the tag to remote** - This triggers the GitHub Actions workflow that builds and deploys the app
+6. **Pushes the tag to remote** - This triggers the `release.yml` GitHub Actions workflow
 
 ### Workflow
 
-When you push a tag, the following happens:
+When you push a tag, `release.yml` does the following:
 
-1. The `firebase-release.yml` workflow is triggered
-2. The app is built and deployed to Firebase Hosting
-3. A GitHub release is created with the version number
+1. Bumps `package.json` to match the tag and commits it to `main`
+2. Creates a GitHub Release with auto-generated notes
+
+Deployment is separate: **Cloudflare Pages deploys automatically on every push to
+`main`** (including the version-bump commit above), so there is no deploy step in
+the workflow.
 
 ### Before running
 

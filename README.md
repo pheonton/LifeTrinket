@@ -1,13 +1,16 @@
 # Life Trinket - Free MTG Life Counter & Commander Damage Tracker
 
 [![PWA](https://img.shields.io/badge/PWA-Enabled-blue)](https://life-trinket.web.app/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-AGPL--3.0-green.svg)](LICENSE)
 [![React](https://img.shields.io/badge/React-19.2.0-61DAFB?logo=react)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 
-A **free, offline-capable PWA life counter** for **Magic: The Gathering** built with **React 19** and **TypeScript**. Perfect for **Commander/EDH** games with comprehensive tracking for life totals, commander damage, poison counters, energy, and experience. **Share game states instantly via QR code** with other players.
+> **Fork notice:** This is a fork of [Vikeo/LifeTrinket](https://github.com/Vikeo/LifeTrinket).
+> It is deployed on **Cloudflare Pages** instead of Firebase Hosting, and ships
+> with no third-party analytics. See the original project for the canonical
+> hosted app at [life-trinket.web.app](https://life-trinket.web.app/).
 
-🔗 **[Try it now: life-trinket.web.app](https://life-trinket.web.app/)**
+A **free, offline-capable PWA life counter** for **Magic: The Gathering** built with **React 19** and **TypeScript**. Perfect for **Commander/EDH** games with comprehensive tracking for life totals, commander damage, poison counters, energy, and experience. **Share game states instantly via QR code** with other players.
 
 ## Why Life Trinket?
 
@@ -15,7 +18,7 @@ Created for the Commander/EDH community because existing life counters lacked es
 
 ✅ **No accounts required**
 ✅ **No advertisements**
-✅ **Minimal tracking** (only "Games started" and "Back to start" events)
+✅ **No analytics or tracking** (this fork ships without an analytics provider)
 ✅ **100% free and open source**
 ✅ **Works completely offline** after PWA installation
 
@@ -52,7 +55,7 @@ There are some controls that you might now know about, so here's a short list of
 - 🆓 Free
 - ❌ No ads
   - There is a "Feed this guy" button if you want to support me
-- 📈 Minimal tracking
+- 🚫 No analytics or tracking
 - 📲 Share game state via QR code
   - Share your current game with other players instantly
   - Scan QR code to load the exact game state on another device
@@ -82,7 +85,8 @@ There are some controls that you might now know about, so here's a short list of
 - **Build Tool**: Vite with SWC for fast compilation
 - **PWA**: vite-plugin-pwa with Workbox for offline functionality
 - **Validation**: Zod for runtime schema validation
-- **Analytics**: Firebase Analytics (minimal tracking)
+- **Analytics**: None
+- **Hosting**: Cloudflare Pages (static build + `public/_headers` / `public/_redirects`)
 - **State Management**: React Context API
 - **Persistence**: LocalStorage with validation
 
@@ -105,7 +109,7 @@ There are some controls that you might now know about, so here's a short list of
 
 ```bash
 # Clone the repository
-git clone https://github.com/Vikeo/LifeTrinket.git
+git clone https://github.com/pheonton/LifeTrinket.git
 cd LifeTrinket
 
 # Install dependencies (requires pnpm)
@@ -121,13 +125,35 @@ pnpm run build
 pnpm run preview
 ```
 
+### Deployment (Cloudflare Pages)
+
+This fork deploys as a static site on **Cloudflare Pages** via its GitHub
+integration — no secrets or deploy workflow required:
+
+1. In the Cloudflare dashboard: **Workers & Pages → Create → Pages → Connect to Git**
+2. Select this repository
+3. Build settings:
+   - Framework preset: **Vite**
+   - Build command: `pnpm run build`
+   - Build output directory: `dist`
+4. Save. Every push to `main` deploys to production; other branches and PRs get
+   preview URLs.
+
+`public/_headers` sets security and cache headers; `public/_redirects` provides
+the SPA fallback so any path serves `index.html`. Both files also work as-is on
+Netlify if you prefer it.
+
 ## 🤝 Contributing
 
-Contributions, issues, and feature requests are welcome! Feel free to check the [issues page](https://github.com/Vikeo/LifeTrinket/issues).
+This is a personal fork. For contributions to the upstream project, see
+[Vikeo/LifeTrinket](https://github.com/Vikeo/LifeTrinket/issues).
 
 ## 📄 License
 
-This project is open source and available under the [MIT License](LICENSE).
+This project is licensed under the [GNU Affero General Public License v3.0](LICENSE).
+Because the AGPL's network-use clause applies, any publicly hosted modified
+version must make its complete source available to users — this repository being
+public satisfies that.
 
 ## 🙏 Acknowledgments
 

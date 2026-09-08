@@ -13,9 +13,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pnpm run lint` - Run ESLint with TypeScript parser
 
 ### Deployment & Assets
-- `pnpm run force-deploy` - Build and deploy to Firebase Hosting
+- Deployment is automatic: **Cloudflare Pages** builds and deploys on every push to `main` (build command `pnpm run build`, output `dist`). There is no deploy script.
 - `pnpm run generate-icons` - Generate React components from SVG files in `src/Icons/svgs/`
-- `pnpm run release` - Create a new release using `scripts/create-release.sh`
+- `pnpm run release` - Tag a new version; `.github/workflows/release.yml` bumps `package.json` and publishes a GitHub Release
 
 ### Requirements
 - Node.js >= 20
@@ -31,8 +31,9 @@ Life Trinket is a Magic the Gathering life counter PWA built with React 19, Type
 - **Tailwind CSS v4** with `react-twc` for typed, styled components
 - **TypeScript** in strict mode
 - **Zod** for runtime validation of persisted data
-- **Firebase Analytics** for minimal event tracking
+- **No third-party analytics** (`useAnalytics` is a console-only no-op in this fork)
 - **vite-plugin-pwa** with Workbox for offline functionality
+- **Cloudflare Pages** for static hosting
 
 ### Application Flow
 ```
@@ -216,23 +217,23 @@ window.isIPad = /iPad/.test(navigator.userAgent)
 
 These are used for platform-specific behaviors like wake lock handling and PWA detection.
 
-## Firebase Analytics Integration
+## Analytics
 
-Analytics are wrapped in `src/Hooks/useAnalytics.ts`:
-- **Development Mode**: Console logs instead of sending events
-- **Auto-Versioning**: All events include app version
-- **Graceful Degradation**: Fails silently if Firebase unavailable
-- **Minimal Tracking**: Only "Games started" and "Back to start" events (as stated in README)
+`src/Hooks/useAnalytics.ts` exposes `useAnalytics().trackEvent(name, params)`,
+called from many components. This fork has **no analytics provider**: in
+development `trackEvent` logs to the console, and in production it does nothing.
+The call sites are left in place so a provider can be added by implementing the
+body of `trackEvent`.
 
-Current tracked events:
-- `game_start` - When starting a new game
-- `reset_game` - When returning to start menu
+Grafana Faro telemetry (`src/Utils/telemetry.ts`) is also present but inert
+unless `VITE_GRAFANA_FARO_URL` is set *and* the runtime origin is in that file's
+`ALLOWED_ORIGINS` list.
 
 ## Version Management
 
 The app checks for updates via GitHub API:
 - Installed version from `package.json` via `import.meta.env.VITE_APP_VERSION`
-- Remote version fetched from GitHub repository
+- Remote version fetched from the latest GitHub Release of `pheonton/LifeTrinket` (see `checkForNewVersion` in `src/Providers/GlobalSettingsProvider.tsx`); if there is no release, the app treats itself as current
 - Comparison uses `semver` library
 - Update notification shown in UI if newer version available
 

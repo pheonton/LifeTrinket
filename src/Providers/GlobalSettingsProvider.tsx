@@ -299,14 +299,16 @@ export const GlobalSettingsProvider = ({
         }
 
         const result = await fetch(
-          'https://api.github.com/repos/Vikeo/LifeTrinket/releases/latest',
+          'https://api.github.com/repos/pheonton/LifeTrinket/releases/latest',
           { headers }
         );
         const data = await result.json();
 
         if (!data.name) {
+          // No published release to compare against (e.g. a fresh fork).
+          // Treat the installed build as current rather than nagging.
           setRemoteVersion(undefined);
-          setIsLatestVersion(false);
+          setIsLatestVersion(true);
           return;
         }
 
