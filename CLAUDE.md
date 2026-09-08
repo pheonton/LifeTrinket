@@ -264,13 +264,15 @@ player card shows the commander's card art instead of the flat colour.
   throws) behind `src/Hooks/useCommanderArt.ts` (debounced, derives state from
   the shared cache during render). The image URL is `art_crop`.
 - **Render**: `LifeCounter` reads `useCommanderArt(player.commanderName)` and,
-  when there's a URL, lays an art layer + overlay behind the `z-[1]` content in
-  `LifeCounterContentWrapper`. The art layer is a container-query square
-  (`max(100cqw,100cqh)`) rotated by `player.settings.rotation` so it faces the
-  player and still covers the cell, anchored low
-  (`background-position: 50% 38%`) so the character sits below the
-  commander-damage bar. Over the overlay, `iconTheme` is forced to `'light'`
-  (`displayPlayer`) and `Health` gets `hasCommanderArt` to firm up its label.
+  when there's a URL, adds an inset art container as the first child of
+  `LifeCounterWrapper` at `z-[-1]` (behind everything). The container only
+  spans the card *below/beside* the commander-damage bar (`top: 10vmin` /
+  `left: 6vmax`), so the top of the art isn't hidden behind it. Inside is a
+  container-query square (`max(100cqw,100cqh)`) rotated by
+  `player.settings.rotation - calcRotation` (the wrapper already applies
+  `calcRotation`) so it ends up facing the player, plus the overlay. Over the
+  overlay `iconTheme` is forced to `'light'` (`displayPlayer`) and `Health`
+  gets `hasCommanderArt` to firm up its label.
 - **Damage bar**: each cell in `CommanderDamage` also shows that opponent's
   commander art (`useCommanderArt(opponent.commanderName)`).
 - **Overlay** (same on the background art and every damage-bar cell): the

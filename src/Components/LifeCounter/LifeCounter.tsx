@@ -76,7 +76,7 @@ const SettingsButton = ({
 };
 
 const LifeCounterContentWrapper = twc.div`
-  relative flex flex-grow flex-col items-center w-full h-full overflow-hidden [container-type:size]`;
+  relative flex flex-grow flex-col items-center w-full h-full overflow-hidden`;
 
 const LifeCounterWrapper = twc.div<RotationDivProps>((props) => [
   'relative flex items-center w-full h-full z-[1]',
@@ -318,44 +318,55 @@ const LifeCounter = ({ player, opponents, matchScore }: LifeCounterProps) => {
 
   const amountOfPlayers = opponents.length + 1;
 
+  const isSideRotation =
+    player.settings.rotation === Rotation.Side ||
+    player.settings.rotation === Rotation.SideFlipped;
+
   return (
     <LifeCounterContentWrapper style={{ background: player.color }}>
-      {commanderArtUrl && (
-        <>
-          {/* Square sized to the longer edge so it still covers the cell after
-              being rotated to face this player. */}
-          <div
-            aria-hidden
-            className="absolute left-1/2 top-1/2 z-0 -translate-x-1/2 -translate-y-1/2 bg-cover pointer-events-none"
-            style={{
-              width: 'max(100cqw, 100cqh)',
-              height: 'max(100cqw, 100cqh)',
-              rotate: `${player.settings.rotation}deg`,
-              backgroundImage: `url("${commanderArtUrl}")`,
-              // Bias downward: the commander-damage bar covers the top of the
-              // card, so shift the art so the character sits below it.
-              backgroundPosition: '50% 38%',
-            }}
-          />
-          {/* Same treatment as the opponent art in the damage bar: the
-              player's colour multiplied over the art - dims for legibility
-              and casts the art toward the player's hue. */}
-          <div
-            aria-hidden
-            className="absolute inset-0 z-0 pointer-events-none mix-blend-multiply"
-            style={{ backgroundColor: player.color, opacity: 0.55 }}
-          />
-          <div
-            aria-hidden
-            className="absolute inset-0 z-0 pointer-events-none bg-black/15"
-          />
-        </>
-      )}
       <LifeCounterWrapper
         $rotation={player.settings.rotation}
         style={{ rotate: `${calcRotation}deg` }}
         {...handlers}
       >
+        {commanderArtUrl && (
+          <div
+            aria-hidden
+            className="absolute z-[-1] isolate overflow-hidden pointer-events-none [container-type:size]"
+            style={
+              isSideRotation
+                ? { top: 0, bottom: 0, left: '6vmax', right: 0 }
+                : { top: '10vmin', bottom: 0, left: 0, right: 0 }
+            }
+          >
+            {/* Square sized to the longer edge so it still covers this region
+                after being rotated to face the player. Only spans the card
+                below/beside the commander-damage bar, so the top of the art
+                isn't hidden behind it. */}
+            <div
+              className="absolute left-1/2 top-1/2 bg-cover"
+              style={{
+                width: 'max(100cqw, 100cqh)',
+                height: 'max(100cqw, 100cqh)',
+                // The wrapper already rotates by calcRotation (0/180); add the
+                // rest so the art ends up facing the player.
+                transform: `translate(-50%, -50%) rotate(${
+                  player.settings.rotation - calcRotation
+                }deg)`,
+                backgroundImage: `url("${commanderArtUrl}")`,
+                backgroundPosition: '50% 12%',
+              }}
+            />
+            {/* Same treatment as the opponent art in the damage bar: the
+                player's colour multiplied over the art - dims for legibility
+                and casts the art toward the player's hue. */}
+            <div
+              className="absolute inset-0 mix-blend-multiply"
+              style={{ backgroundColor: player.color, opacity: 0.55 }}
+            />
+            <div className="absolute inset-0 bg-black/15" />
+          </div>
+        )}
         {amountOfPlayers > 1 &&
           !playing &&
           settings.showStartingPlayer &&
