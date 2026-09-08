@@ -250,6 +250,10 @@ player card shows the commander's card art instead of the flat colour.
   (`src/Components/Players/PlayerMenu.tsx`), shown only for commander games,
   opening its own dialog with a live Scryfall search + thumbnail. Committed to
   `player.commanderName` on dialog close.
+- **Colour**: picking a commander also sets `player.color` (and `iconTheme`)
+  from a colour sampled off the art (`src/Utils/imageColor.ts` /
+  `src/Hooks/useDerivedColor.ts`) - so colour isn't a second thing to set. The
+  colour picker still works as a manual override and for non-commander games.
 - **Lifetime**: local cosmetic only. It's on the player so a mid-game reload
   keeps it (`players` localStorage) and it lasts the match, but it is
   **stripped from the QR-share** (`encodeGameState` in `src/Utils/shareState.ts`)
@@ -260,16 +264,19 @@ player card shows the commander's card art instead of the flat colour.
   throws) behind `src/Hooks/useCommanderArt.ts` (debounced, derives state from
   the shared cache during render). The image URL is `art_crop`.
 - **Render**: `LifeCounter` reads `useCommanderArt(player.commanderName)` and,
-  when there's a URL, lays an art layer + `bg-black/40` scrim behind the
-  `z-[1]` content in `LifeCounterContentWrapper`. The art layer is a
-  container-query square (`max(100cqw,100cqh)`) rotated by
-  `player.settings.rotation` so it faces the player and still covers the cell,
-  anchored low (`background-position: 50% 38%`) so the character sits below the
-  commander-damage bar. Over the scrim, `iconTheme` is forced to `'light'`
+  when there's a URL, lays an art layer + overlay behind the `z-[1]` content in
+  `LifeCounterContentWrapper`. The art layer is a container-query square
+  (`max(100cqw,100cqh)`) rotated by `player.settings.rotation` so it faces the
+  player and still covers the cell, anchored low
+  (`background-position: 50% 38%`) so the character sits below the
+  commander-damage bar. Over the overlay, `iconTheme` is forced to `'light'`
   (`displayPlayer`) and `Health` gets `hasCommanderArt` to firm up its label.
 - **Damage bar**: each cell in `CommanderDamage` also shows that opponent's
-  commander art (`useCommanderArt(opponent.commanderName)`), tinted with the
-  opponent's colour (`mix-blend-multiply`) so the pod stays colour-coded.
+  commander art (`useCommanderArt(opponent.commanderName)`).
+- **Overlay** (same on the background art and every damage-bar cell): the
+  relevant player's colour at `mix-blend-multiply` ~0.55 plus a light
+  `bg-black/15` - dims for legibility and casts the art toward that player's
+  hue while keeping it recognisable.
 - **Fallback**: offline / not found / non-commander → no art layer → the
   existing flat `player.color`, unchanged.
 - **PWA**: `vite.config.ts` `runtimeCaching` caches `cards.scryfall.io` images

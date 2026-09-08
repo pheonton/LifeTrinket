@@ -337,9 +337,17 @@ const LifeCounter = ({ player, opponents, matchScore }: LifeCounterProps) => {
               backgroundPosition: '50% 38%',
             }}
           />
+          {/* Same treatment as the opponent art in the damage bar: the
+              player's colour multiplied over the art - dims for legibility
+              and casts the art toward the player's hue. */}
           <div
             aria-hidden
-            className="absolute inset-0 z-0 bg-black/40 pointer-events-none"
+            className="absolute inset-0 z-0 pointer-events-none mix-blend-multiply"
+            style={{ backgroundColor: player.color, opacity: 0.55 }}
+          />
+          <div
+            aria-hidden
+            className="absolute inset-0 z-0 pointer-events-none bg-black/15"
           />
         </>
       )}

@@ -25,6 +25,7 @@ import {
 import { Player, Rotation } from '../../Types/Player';
 import { normalizeDeckName } from '../../Types/DeckStats';
 import { useCommanderArt } from '../../Hooks/useCommanderArt';
+import { useDerivedColor } from '../../Hooks/useDerivedColor';
 import { PreStartMode } from '../../Types/Settings';
 import { RotationDivProps } from '../Buttons/CommanderDamage';
 import { IconCheckbox } from '../Misc/IconCheckbox';
@@ -122,6 +123,9 @@ const PlayerMenu = ({
   const [commanderQuery, setCommanderQuery] = useState('');
   // Preview inside the picker dialog; the play-field art has its own lookup.
   const commanderPreview = useCommanderArt(commanderQuery);
+  // Colour sampled from the previewed art - becomes the player's colour so
+  // they don't have to set both.
+  const commanderColor = useDerivedColor(commanderPreview.artUrl);
   // Thumbnail for the toggle button, from the player's committed commander.
   const commanderButtonArt = useCommanderArt(
     player.settings.useCommanderDamage ? player.commanderName : ''
@@ -278,9 +282,19 @@ const PlayerMenu = ({
 
   const commitCommander = () => {
     const next = (commanderInputRef.current?.value ?? '').trim();
-    if (next !== player.commanderName) {
-      updatePlayer({ ...player, commanderName: next });
+    if (next === player.commanderName) return;
+
+    const updated: Player = { ...player, commanderName: next };
+    // Adopt a colour sampled from the art so colour and commander aren't two
+    // separate things to set.
+    if (next && commanderColor && commanderColor !== player.color) {
+      updated.color = commanderColor;
+      updated.iconTheme =
+        checkContrast(commanderColor, '#00000080') === 'Fail'
+          ? 'light'
+          : 'dark';
     }
+    updatePlayer(updated);
   };
 
   const toggleFullscreen = () => {

@@ -225,12 +225,20 @@ export const CommanderDamage = ({
         backgroundPosition: 'center',
       }
     : { background: opponent.color };
+  // Same treatment as the main background art (LifeCounter): colour multiplied
+  // over the art, plus a light dark wash.
   const colorTint = opponentArt ? (
-    <div
-      aria-hidden
-      className="absolute inset-0 pointer-events-none mix-blend-multiply"
-      style={{ backgroundColor: opponent.color, opacity: 0.55 }}
-    />
+    <>
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none mix-blend-multiply"
+        style={{ backgroundColor: opponent.color, opacity: 0.55 }}
+      />
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none bg-black/15"
+      />
+    </>
   ) : null;
 
   return (
