@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.2.2",
   "type": "commonjs",
+  "packageManager": "pnpm@12.3.4",
   "engines": {
     "node": ">=20",
     "yarn": "use pnpm",
