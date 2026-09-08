@@ -246,11 +246,15 @@ Cross-game statistics keyed by deck name, persisted in `localStorage` under
 Purely cosmetic: in Commander games (`player.settings.useCommanderDamage`) a
 player card shows the commander's card art instead of the flat colour.
 
-- **Entry**: a "Commander" field in the deck-name dialog
+- **Entry**: a button next to the colour picker in the player menu
   (`src/Components/Players/PlayerMenu.tsx`), shown only for commander games,
-  with a live Scryfall search + thumbnail. Committed to `player.commanderName`
-  on dialog close - same lifecycle as `deckName` (persists across games in a
-  match, rides along in the QR-share / saved game). Nothing else is stored.
+  opening its own dialog with a live Scryfall search + thumbnail. Committed to
+  `player.commanderName` on dialog close.
+- **Lifetime**: local cosmetic only. It's on the player so a mid-game reload
+  keeps it (`players` localStorage) and it lasts the match, but it is
+  **stripped from the QR-share** (`encodeGameState` in `src/Utils/shareState.ts`)
+  and the **pause/resume snapshot** (`handleGoToStart` in `PlayerMenu.tsx`).
+  Cleared when a new game starts (`getInitialPlayers`).
 - **Fetch**: `src/Utils/scryfall.ts` (`fetchCommanderArt`, fuzzy
   `api.scryfall.com/cards/named`, in-memory result + in-flight cache, never
   throws) behind `src/Hooks/useCommanderArt.ts` (debounced, derives state from
@@ -259,7 +263,8 @@ player card shows the commander's card art instead of the flat colour.
   when there's a URL, lays an art layer + `bg-black/40` scrim behind the
   `z-[1]` content in `LifeCounterContentWrapper`. The art layer is a
   container-query square (`max(100cqw,100cqh)`) rotated by
-  `player.settings.rotation` so it faces the player and still covers the cell.
+  `player.settings.rotation` so it faces the player and still covers the cell,
+  anchored near the top of the art (`background-position: 50% 12%`).
   Over the scrim, `iconTheme` is forced to `'light'` (`displayPlayer`) and
   `Health` gets `hasCommanderArt` to firm up its label.
 - **Fallback**: offline / not found / non-commander → no art layer → the

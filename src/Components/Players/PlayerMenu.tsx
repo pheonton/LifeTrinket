@@ -8,6 +8,7 @@ import { useSafeRotate } from '../../Hooks/useSafeRotate';
 import {
   Close,
   Coffee,
+  CommanderTax,
   DeckTag,
   Energy,
   Exit,
@@ -116,9 +117,15 @@ const PlayerMenu = ({
   const deckNameDialogRef = useRef<HTMLDialogElement | null>(null);
   const deckNameInputRef = useRef<HTMLInputElement | null>(null);
   const [deckNameQuery, setDeckNameQuery] = useState('');
+  const commanderDialogRef = useRef<HTMLDialogElement | null>(null);
   const commanderInputRef = useRef<HTMLInputElement | null>(null);
   const [commanderQuery, setCommanderQuery] = useState('');
-  const commander = useCommanderArt(commanderQuery);
+  // Preview inside the picker dialog; the play-field art has its own lookup.
+  const commanderPreview = useCommanderArt(commanderQuery);
+  // Thumbnail for the toggle button, from the player's committed commander.
+  const commanderButtonArt = useCommanderArt(
+    player.settings.useCommanderDamage ? player.commanderName : ''
+  );
 
   const { isSide } = useSafeRotate({
     rotation: player.settings.rotation,
@@ -182,7 +189,12 @@ const PlayerMenu = ({
   };
 
   const handleGoToStart = () => {
-    saveCurrentGame({ players, initialGameSettings, gameScore });
+    saveCurrentGame({
+      // Commander is a local-only cosmetic; leave it out of the saved game.
+      players: players.map((p) => ({ ...p, commanderName: '' })),
+      initialGameSettings,
+      gameScore,
+    });
     goToStart();
     setRandomizingPlayer(true);
   };
@@ -233,27 +245,18 @@ const PlayerMenu = ({
 
   const openDeckNameDialog = () => {
     setDeckNameQuery(player.deckName);
-    setCommanderQuery(player.commanderName);
     if (deckNameInputRef.current) {
       deckNameInputRef.current.value = player.deckName;
-    }
-    if (commanderInputRef.current) {
-      commanderInputRef.current.value = player.commanderName;
     }
     deckNameDialogRef.current?.show();
   };
 
-  // The dialog has no save button - whatever is in the fields when it closes
-  // (via the X, a chip, or a tap outside) becomes the deck name / commander.
-  const commitDeckDialog = () => {
-    const nextDeck = (deckNameInputRef.current?.value ?? '').trim();
-    const nextCommander = (commanderInputRef.current?.value ?? '').trim();
-    if (nextDeck !== player.deckName || nextCommander !== player.commanderName) {
-      updatePlayer({
-        ...player,
-        deckName: nextDeck,
-        commanderName: nextCommander,
-      });
+  // The dialogs have no save button - whatever is in the field when they close
+  // (via the X, a chip, or a tap outside) is committed.
+  const commitDeckName = () => {
+    const next = (deckNameInputRef.current?.value ?? '').trim();
+    if (next !== player.deckName) {
+      updatePlayer({ ...player, deckName: next });
     }
   };
 
@@ -263,6 +266,21 @@ const PlayerMenu = ({
       deckNameInputRef.current.value = name;
     }
     deckNameDialogRef.current?.close();
+  };
+
+  const openCommanderDialog = () => {
+    setCommanderQuery(player.commanderName);
+    if (commanderInputRef.current) {
+      commanderInputRef.current.value = player.commanderName;
+    }
+    commanderDialogRef.current?.show();
+  };
+
+  const commitCommander = () => {
+    const next = (commanderInputRef.current?.value ?? '').trim();
+    if (next !== player.commanderName) {
+      updatePlayer({ ...player, commanderName: next });
+    }
   };
 
   const toggleFullscreen = () => {
@@ -329,6 +347,25 @@ const PlayerMenu = ({
                 }}
               />
             </ColorPickerButton>
+            {player.settings.useCommanderDamage && (
+              <button
+                type="button"
+                aria-label="Commander"
+                onClick={openCommanderDialog}
+                className="h-[8vmax] w-[8vmax] max-h-12 max-w-12 relative rounded-full overflow-hidden border border-primary-dark bg-secondary-main flex items-center justify-center text-primary-main"
+              >
+                {commanderButtonArt.artUrl ? (
+                  <img
+                    src={commanderButtonArt.artUrl}
+                    alt=""
+                    className="absolute inset-0 size-full object-cover"
+                    style={{ objectPosition: '50% 15%' }}
+                  />
+                ) : (
+                  <CommanderTax size={iconSize} />
+                )}
+              </button>
+            )}
             {player.settings.useCommanderDamage && (
               <div className="flex flex-col items-center">
                 <IconCheckbox
@@ -794,7 +831,7 @@ const PlayerMenu = ({
 
         <dialog
           ref={deckNameDialogRef}
-          onClose={commitDeckDialog}
+          onClose={commitDeckName}
           className="z-[999] size-full bg-background-settings overflow-y-scroll"
           onClick={() => deckNameDialogRef.current?.close()}
         >
@@ -851,57 +888,83 @@ const PlayerMenu = ({
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        </dialog>
 
-              {player.settings.useCommanderDamage && (
-                <>
-                  <span
-                    className="text-text-secondary font-semibold mt-1"
-                    style={{ fontSize: buttonFontSize }}
-                  >
-                    Commander (shows card art)
+        <dialog
+          ref={commanderDialogRef}
+          onClose={commitCommander}
+          className="z-[999] size-full bg-background-settings overflow-y-scroll"
+          onClick={() => commanderDialogRef.current?.close()}
+        >
+          <div className="flex size-full items-center justify-center">
+            <div
+              className="flex flex-col p-3 gap-2 bg-background-default rounded-xl border-none w-[80vmin] max-w-[420px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div
+                className="flex items-center gap-2 text-text-primary"
+                style={{ fontSize: buttonFontSize }}
+              >
+                <CommanderTax size={buttonFontSize} />
+                <span className="flex-grow font-semibold">Commander</span>
+                <button
+                  onClick={() => commanderDialogRef.current?.close()}
+                  aria-label="Close"
+                  className="text-primary-main"
+                >
+                  <Close size={buttonFontSize} />
+                </button>
+              </div>
+              <span
+                className="text-text-secondary"
+                style={{ fontSize: buttonFontSize }}
+              >
+                Shows the card art on this player&apos;s side. Not saved or
+                shared - just for this game.
+              </span>
+              <input
+                ref={commanderInputRef}
+                onFocus={(e) => e.currentTarget.select()}
+                onChange={(e) => setCommanderQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commanderDialogRef.current?.close();
+                }}
+                placeholder="e.g. Atraxa, Praetors' Voice"
+                className="bg-secondary-main text-text-primary rounded-lg px-2 py-1.5 border border-primary-dark outline-none"
+                style={{ fontSize: buttonFontSize }}
+              />
+              <div
+                className="flex items-center gap-2 min-h-[9vmin]"
+                style={{ fontSize: buttonFontSize }}
+              >
+                {commanderPreview.status === 'loading' && (
+                  <span className="text-text-secondary italic">
+                    Searching Scryfall...
                   </span>
-                  <input
-                    ref={commanderInputRef}
-                    onFocus={(e) => e.currentTarget.select()}
-                    onChange={(e) => setCommanderQuery(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter')
-                        deckNameDialogRef.current?.close();
-                    }}
-                    placeholder="e.g. Atraxa, Praetors' Voice"
-                    className="bg-secondary-main text-text-primary rounded-lg px-2 py-1.5 border border-primary-dark outline-none"
-                    style={{ fontSize: buttonFontSize }}
-                  />
-                  <div
-                    className="flex items-center gap-2 min-h-[8vmin]"
-                    style={{ fontSize: buttonFontSize }}
-                  >
-                    {commander.status === 'loading' && (
-                      <span className="text-text-secondary italic">
-                        Searching Scryfall...
+                )}
+                {commanderPreview.status === 'found' &&
+                  commanderPreview.artUrl && (
+                    <>
+                      <img
+                        src={commanderPreview.artUrl}
+                        alt=""
+                        className="h-[9vmin] w-[14vmin] object-cover rounded-md border border-primary-dark"
+                        style={{ objectPosition: '50% 15%' }}
+                      />
+                      <span className="text-text-primary">
+                        {commanderPreview.cardName}
                       </span>
-                    )}
-                    {commander.status === 'found' && commander.artUrl && (
-                      <>
-                        <img
-                          src={commander.artUrl}
-                          alt=""
-                          className="h-[8vmin] w-[12vmin] object-cover rounded-md border border-primary-dark"
-                        />
-                        <span className="text-text-primary">
-                          {commander.cardName}
-                        </span>
-                      </>
-                    )}
-                    {commander.status === 'notfound' &&
-                      commanderQuery.trim() !== '' && (
-                        <span className="text-text-secondary italic">
-                          No card found - the card art won&apos;t show.
-                        </span>
-                      )}
-                  </div>
-                </>
-              )}
+                    </>
+                  )}
+                {commanderPreview.status === 'notfound' &&
+                  commanderQuery.trim() !== '' && (
+                    <span className="text-text-secondary italic">
+                      No card found - the art won&apos;t show.
+                    </span>
+                  )}
+              </div>
             </div>
           </div>
         </dialog>

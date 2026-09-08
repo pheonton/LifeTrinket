@@ -326,12 +326,14 @@ const LifeCounter = ({ player, opponents, matchScore }: LifeCounterProps) => {
               being rotated to face this player. */}
           <div
             aria-hidden
-            className="absolute left-1/2 top-1/2 z-0 -translate-x-1/2 -translate-y-1/2 bg-center bg-cover pointer-events-none"
+            className="absolute left-1/2 top-1/2 z-0 -translate-x-1/2 -translate-y-1/2 bg-cover pointer-events-none"
             style={{
               width: 'max(100cqw, 100cqh)',
               height: 'max(100cqw, 100cqh)',
               rotate: `${player.settings.rotation}deg`,
               backgroundImage: `url("${commanderArtUrl}")`,
+              // Keep the top of the art (usually the character); trim bottom.
+              backgroundPosition: '50% 12%',
             }}
           />
           <div

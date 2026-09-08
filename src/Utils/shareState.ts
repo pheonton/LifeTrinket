@@ -24,7 +24,8 @@ export function encodeGameState(
   const state: SharedGameState = {
     version,
     initialGameSettings,
-    players,
+    // Commander is a local-only cosmetic; don't ship it in the share link.
+    players: players.map((player) => ({ ...player, commanderName: '' })),
     gameScore,
     lifeHistory,
     startingPlayerIndex,
