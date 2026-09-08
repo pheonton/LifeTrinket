@@ -17,7 +17,12 @@ import {
   lifeHistorySchema,
   settingsSchema,
 } from '../Types/Settings';
-import { LifeHistoryEvent } from '../Types/Player';
+import { LifeHistoryEvent, Player } from '../Types/Player';
+import {
+  DeckStats,
+  deckStatsSchema,
+  recordGameToDeckStats,
+} from '../Types/DeckStats';
 import { gte as semverGreaterThanOrEqual } from 'semver';
 import type { SharedGameState } from '../Types/SharedState';
 
@@ -167,6 +172,52 @@ export const GlobalSettingsProvider = ({
   const clearLifeHistory = useCallback(() => {
     setLifeHistory([]);
     localStorage.removeItem('lifeHistory');
+  }, []);
+
+  const [deckStats, setDeckStats] = useState<DeckStats>(() => {
+    const saved = localStorage.getItem('deckStats');
+    if (!saved) return {};
+    const parsed = deckStatsSchema.safeParse(JSON.parse(saved));
+    if (!parsed.success) {
+      console.error('invalid deck stats, using empty object');
+      return {};
+    }
+    return parsed.data;
+  });
+  const persistDeckStats = useCallback((next: DeckStats) => {
+    setDeckStats(next);
+    if (Object.keys(next).length === 0) {
+      localStorage.removeItem('deckStats');
+    } else {
+      localStorage.setItem('deckStats', JSON.stringify(next));
+    }
+  }, []);
+  const recordGame = useCallback(
+    (gamePlayers: Player[], winnerIndex: number) => {
+      setDeckStats((prev) => {
+        const next = recordGameToDeckStats(prev, gamePlayers, winnerIndex);
+        if (next === prev) return prev;
+        localStorage.setItem('deckStats', JSON.stringify(next));
+        return next;
+      });
+    },
+    []
+  );
+  const clearDeckStats = useCallback(() => {
+    persistDeckStats({});
+  }, [persistDeckStats]);
+  const deleteDeck = useCallback((normalizedName: string) => {
+    setDeckStats((prev) => {
+      if (!(normalizedName in prev)) return prev;
+      const next = { ...prev };
+      delete next[normalizedName];
+      if (Object.keys(next).length === 0) {
+        localStorage.removeItem('deckStats');
+      } else {
+        localStorage.setItem('deckStats', JSON.stringify(next));
+      }
+      return next;
+    });
   }, []);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -378,6 +429,10 @@ export const GlobalSettingsProvider = ({
       lifeHistory,
       addLifeHistoryEvent,
       clearLifeHistory,
+      deckStats,
+      recordGame,
+      clearDeckStats,
+      deleteDeck,
     };
   }, [
     isFullscreen,
@@ -402,6 +457,10 @@ export const GlobalSettingsProvider = ({
     lifeHistory,
     addLifeHistoryEvent,
     clearLifeHistory,
+    deckStats,
+    recordGame,
+    clearDeckStats,
+    deleteDeck,
   ]);
 
   return (

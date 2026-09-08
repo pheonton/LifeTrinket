@@ -1,6 +1,7 @@
 import { createContext } from 'react';
 import { InitialGameSettings, Settings } from '../Types/Settings';
 import { LifeHistoryEvent, Player } from '../Types/Player';
+import { DeckStats } from '../Types/DeckStats';
 
 type Version = {
   installedVersion: string;
@@ -56,6 +57,10 @@ export type GlobalSettingsContextType = {
   lifeHistory: LifeHistoryEvent[];
   addLifeHistoryEvent: (event: LifeHistoryEvent) => void;
   clearLifeHistory: () => void;
+  deckStats: DeckStats;
+  recordGame: (players: Player[], winnerIndex: number) => void;
+  clearDeckStats: () => void;
+  deleteDeck: (normalizedName: string) => void;
 };
 
 export const GlobalSettingsContext =

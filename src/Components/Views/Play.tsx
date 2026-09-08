@@ -17,8 +17,15 @@ export type GridLayout = `grid-areas-${GridTemplateAreasKeys}`;
 
 export const Play = () => {
   const { players, setPlayers, resetCurrentGame, setStartingPlayerIndex } = usePlayers();
-  const { initialGameSettings, playing, settings, preStartCompleted, gameScore, setGameScore } =
-    useGlobalSettings();
+  const {
+    initialGameSettings,
+    playing,
+    settings,
+    preStartCompleted,
+    gameScore,
+    setGameScore,
+    recordGame,
+  } = useGlobalSettings();
   const [winner, setWinner] = useState<number | null>(null);
 
   let gridLayout: GridLayout;
@@ -114,6 +121,9 @@ export const Play = () => {
   const handleStartNextGame = () => {
     if (winner === null) return;
 
+    // Record deck stats for the finished game
+    recordGame(players, winner);
+
     // Update score
     const newScore = { ...gameScore };
     newScore[winner] = (newScore[winner] || 0) + 1;
@@ -130,6 +140,9 @@ export const Play = () => {
 
   const handleStay = () => {
     if (winner === null) return;
+
+    // Record deck stats for the finished game
+    recordGame(players, winner);
 
     // Update score
     const newScore = { ...gameScore };

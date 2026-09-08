@@ -188,6 +188,15 @@ const PlayerMenu = ({
     updatePlayer(updatedPlayer);
   };
 
+  const handleUpdateDeckName = () => {
+    const newDeckName = prompt('Enter deck name', player.deckName);
+    // `null` means the prompt was cancelled - leave the deck name untouched.
+    if (newDeckName === null) {
+      return;
+    }
+    updatePlayer({ ...player, deckName: newDeckName.trim() });
+  };
+
   const toggleFullscreen = () => {
     if (fullscreen.isFullscreen) {
       fullscreen.disableFullscreen();
@@ -494,6 +503,24 @@ const PlayerMenu = ({
               aria-label="Name Tag"
             >
               <NameTag size={iconSize} />
+            </button>
+
+            <button
+              style={{
+                cursor: 'pointer',
+                userSelect: 'none',
+                fontSize: buttonFontSize,
+                padding: '2px',
+                maxWidth: '14ch',
+              }}
+              className="text-primary-main px-1 webkit-user-select-none cursor-pointer
+              data-[has-deck=true]:bg-secondary-dark rounded-lg border border-transparent
+              data-[has-deck=true]:border-primary-main truncate"
+              data-has-deck={player.deckName ? true : false}
+              onClick={handleUpdateDeckName}
+              aria-label="Deck name"
+            >
+              {player.deckName || 'Deck'}
             </button>
 
             <button

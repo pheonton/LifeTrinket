@@ -18,6 +18,7 @@ import {
 import { baseColors } from '../../../../tailwind.config';
 import { InfoDialog } from '../../Dialogs/InfoDialog';
 import { SettingsDialog } from '../../Dialogs/SettingsDialog';
+import { DeckStatsDialog } from '../../Dialogs/DeckStatsDialog';
 import { LabelText } from '../../Misc/TextComponents';
 import { ToggleButton } from '../../Misc/ToggleButton';
 import { LayoutOptions } from './LayoutOptions';
@@ -74,6 +75,7 @@ const Start = () => {
 
   const infoDialogRef = useRef<HTMLDialogElement | null>(null);
   const settingsDialogRef = useRef<HTMLDialogElement | null>(null);
+  const deckStatsDialogRef = useRef<HTMLDialogElement | null>(null);
   const playersSliderRef = useRef<HTMLInputElement | null>(null);
   const healthSliderRef = useRef<HTMLInputElement | null>(null);
 
@@ -256,6 +258,10 @@ const Start = () => {
     }
   };
 
+  const openDeckStats = () => {
+    deckStatsDialogRef.current?.showModal();
+  };
+
   return (
     <>
       <InfoDialog dialogRef={infoDialogRef} />
@@ -267,6 +273,7 @@ const Start = () => {
       )}
 
       <SettingsDialog dialogRef={settingsDialogRef} />
+      <DeckStatsDialog dialogRef={deckStatsDialogRef} />
       <div className="flex justify-center items-center w-screen">
         <MainWrapper>
           <Info
@@ -275,6 +282,26 @@ const Start = () => {
               openInfo();
             }}
           />
+          <button
+            type="button"
+            aria-label="Deck stats"
+            onClick={openDeckStats}
+            className="size-8 absolute top-16 left-4 text-primary-main"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="size-full"
+            >
+              <line x1="12" y1="20" x2="12" y2="10" />
+              <line x1="18" y1="20" x2="18" y2="4" />
+              <line x1="6" y1="20" x2="6" y2="16" />
+            </svg>
+          </button>
           <a href="https://lifetrinket.com/">
             <Trinket className="absolute w-12 h-12 top-4 right-4" />
           </a>

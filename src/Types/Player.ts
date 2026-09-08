@@ -11,6 +11,7 @@ export type Player = {
   hasLost: boolean;
   isSide: boolean;
   name: string;
+  deckName: string;
 };
 
 export type PlayerSettings = {

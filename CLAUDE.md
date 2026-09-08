@@ -95,6 +95,8 @@ These hooks throw descriptive errors if used outside their providers, preventing
 - `playing` / `showPlay` - View routing flags
 - `savedGame` - Full game snapshot (cleared on resume)
 - `gameScore` - Match score tracking
+- `lifeHistory` - Per-game life change events
+- `deckStats` - Cross-game per-deck stats (see Deck Stats below)
 - `startingPlayerIndex`, `preStartComplete` - Misc game state
 
 **Validation Strategy**:
@@ -216,6 +218,28 @@ window.isIPad = /iPad/.test(navigator.userAgent)
 ```
 
 These are used for platform-specific behaviors like wake lock handling and PWA detection.
+
+## Deck Stats
+
+Cross-game statistics keyed by deck name, persisted in `localStorage` under
+`deckStats`.
+
+- **Entry**: each player sets a deck name from the in-game player menu
+  (`src/Components/Players/PlayerMenu.tsx`, `handleUpdateDeckName`). The name
+  lives on `Player.deckName` and persists across games within a match.
+- **Recording**: `Play.tsx` calls `recordGame(players, winnerIndex)` from both
+  `<GameOver>` exit handlers. Only runs when `settings.showMatchScore` is on and
+  there are ≥2 players (that's what triggers game-over detection). Games
+  abandoned via reset / back-to-start are not recorded.
+- **Aggregation**: `recordGameToDeckStats` in `src/Types/DeckStats.ts` is a pure
+  fold. Blank deck names are ignored; seats sharing a normalized name count as
+  one deck for that game. Tracks `gamesPlayed`, `wins`, `losses`,
+  `opponentsFaced` (cumulative), `lastPlayed`. Win % is derived, not stored.
+- **Viewing**: `DeckStatsDialog` (`src/Components/Dialogs/DeckStatsDialog.tsx`),
+  opened from the bar-chart button on the start menu. Supports per-deck delete
+  and clear-all.
+- **State**: `deckStats` / `recordGame` / `clearDeckStats` / `deleteDeck` on
+  `GlobalSettingsContext`, implemented in `GlobalSettingsProvider`.
 
 ## Analytics
 
