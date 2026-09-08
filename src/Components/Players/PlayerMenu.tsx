@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef } from 'react';
 import { twc } from 'react-twc';
 import { useAnalytics } from '../../Hooks/useAnalytics';
 import { useMetrics } from '../../Hooks/useMetrics';
@@ -113,7 +113,7 @@ const PlayerMenu = ({
   const forfeitGameDialogRef = useRef<HTMLDialogElement | null>(null);
   const historyDialogRef = useRef<HTMLDialogElement | null>(null);
   const deckNameDialogRef = useRef<HTMLDialogElement | null>(null);
-  const [deckNameDraft, setDeckNameDraft] = useState('');
+  const deckNameInputRef = useRef<HTMLInputElement | null>(null);
 
   const { isSide } = useSafeRotate({
     rotation: player.settings.rotation,
@@ -212,12 +212,25 @@ const PlayerMenu = ({
   }, [deckStats, players, player.index]);
 
   const openDeckNameDialog = () => {
-    setDeckNameDraft(player.deckName);
+    if (deckNameInputRef.current) {
+      deckNameInputRef.current.value = player.deckName;
+    }
     deckNameDialogRef.current?.show();
   };
 
-  const saveDeckName = (name: string) => {
-    updatePlayer({ ...player, deckName: name.trim() });
+  // The dialog has no save button - whatever is in the field when it closes
+  // (via the X, a chip, or a tap outside) becomes the deck name.
+  const commitDeckName = () => {
+    const next = (deckNameInputRef.current?.value ?? '').trim();
+    if (next !== player.deckName) {
+      updatePlayer({ ...player, deckName: next });
+    }
+  };
+
+  const pickDeck = (name: string) => {
+    if (deckNameInputRef.current) {
+      deckNameInputRef.current.value = name;
+    }
     deckNameDialogRef.current?.close();
   };
 
@@ -750,30 +763,39 @@ const PlayerMenu = ({
 
         <dialog
           ref={deckNameDialogRef}
+          onClose={commitDeckName}
           className="z-[999] size-full bg-background-settings overflow-y-scroll"
           onClick={() => deckNameDialogRef.current?.close()}
         >
           <div className="flex size-full items-center justify-center">
             <div
-              className="flex flex-col p-4 gap-3 bg-background-default rounded-xl border-none max-w-[92vmin]"
+              className="flex flex-col p-3 gap-2 bg-background-default rounded-xl border-none w-[80vmin] max-w-[420px]"
               onClick={(e) => e.stopPropagation()}
             >
-              <h1
-                className="text-center text-text-primary"
-                style={{ fontSize: extraCountersSize }}
+              <div
+                className="flex items-center gap-2 text-text-primary"
+                style={{ fontSize: buttonFontSize }}
               >
-                Deck name
-              </h1>
+                <DeckTag size={buttonFontSize} />
+                <span className="flex-grow font-semibold">Deck name</span>
+                <button
+                  onClick={() => deckNameDialogRef.current?.close()}
+                  aria-label="Close"
+                  className="text-primary-main"
+                >
+                  <Close size={buttonFontSize} />
+                </button>
+              </div>
               <input
+                ref={deckNameInputRef}
                 list={`known-decks-${player.index}`}
-                value={deckNameDraft}
-                onChange={(e) => setDeckNameDraft(e.target.value)}
+                onFocus={(e) => e.currentTarget.select()}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') saveDeckName(deckNameDraft);
+                  if (e.key === 'Enter') deckNameDialogRef.current?.close();
                 }}
                 placeholder="Deck name"
-                className="bg-secondary-main text-text-primary rounded-lg px-3 py-2 border border-primary-dark outline-none"
-                style={{ fontSize: iconSize }}
+                className="bg-secondary-main text-text-primary rounded-lg px-2 py-1.5 border border-primary-dark outline-none"
+                style={{ fontSize: buttonFontSize }}
               />
               <datalist id={`known-decks-${player.index}`}>
                 {knownDecks.map((deck) => (
@@ -781,12 +803,12 @@ const PlayerMenu = ({
                 ))}
               </datalist>
               {knownDecks.length > 0 && (
-                <div className="flex flex-wrap gap-2 justify-center max-h-[30vmin] overflow-y-auto">
+                <div className="flex flex-wrap gap-1.5 max-h-[28vmin] overflow-y-auto">
                   {knownDecks.map((deck) => (
                     <button
                       key={deck}
-                      onClick={() => saveDeckName(deck)}
-                      className="bg-secondary-main text-text-primary rounded-full px-3 py-1 border border-primary-dark"
+                      onClick={() => pickDeck(deck)}
+                      className="bg-secondary-main text-text-primary rounded-full px-2 py-0.5 border border-primary-dark"
                       style={{ fontSize: buttonFontSize }}
                     >
                       {deck}
@@ -794,29 +816,6 @@ const PlayerMenu = ({
                   ))}
                 </div>
               )}
-              <div className="flex justify-evenly gap-2">
-                <button
-                  className="bg-primary-main border border-primary-dark text-text-primary rounded-lg flex-grow"
-                  style={{ fontSize: iconSize }}
-                  onClick={() => deckNameDialogRef.current?.close()}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="bg-primary-main border border-primary-dark text-text-primary rounded-lg flex-grow"
-                  style={{ fontSize: iconSize }}
-                  onClick={() => saveDeckName('')}
-                >
-                  Clear
-                </button>
-                <button
-                  className="bg-primary-main border border-primary-dark text-text-primary rounded-lg flex-grow"
-                  style={{ fontSize: iconSize }}
-                  onClick={() => saveDeckName(deckNameDraft)}
-                >
-                  Save
-                </button>
-              </div>
             </div>
           </div>
         </dialog>
