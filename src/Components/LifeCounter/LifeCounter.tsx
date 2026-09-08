@@ -332,8 +332,9 @@ const LifeCounter = ({ player, opponents, matchScore }: LifeCounterProps) => {
               height: 'max(100cqw, 100cqh)',
               rotate: `${player.settings.rotation}deg`,
               backgroundImage: `url("${commanderArtUrl}")`,
-              // Keep the top of the art (usually the character); trim bottom.
-              backgroundPosition: '50% 12%',
+              // Bias downward: the commander-damage bar covers the top of the
+              // card, so shift the art so the character sits below it.
+              backgroundPosition: '50% 38%',
             }}
           />
           <div

@@ -5,6 +5,7 @@ import { useAnalytics } from '../../Hooks/useAnalytics';
 import { useMetrics } from '../../Hooks/useMetrics';
 import { useUserActions } from '../../Hooks/useUserActions';
 import { usePlayers } from '../../Hooks/usePlayers';
+import { useCommanderArt } from '../../Hooks/useCommanderArt';
 import { Player, Rotation } from '../../Types/Player';
 import { OutlinedText } from '../Misc/OutlinedText';
 
@@ -27,7 +28,7 @@ const CommanderDamageContainer = twc.div<RotationDivProps>((props) => [
 ]);
 
 const CommanderDamageButton = twc.button<RotationButtonProps>((props) => [
-  'flex flex-grow border-none outline-none cursor-pointer m-0 p-0 webkit-user-select-none',
+  'relative flex flex-grow border-none outline-none cursor-pointer m-0 p-0 webkit-user-select-none overflow-hidden',
   props.$rotation === Rotation.SideFlipped || props.$rotation === Rotation.Side
     ? 'w-[6vmax] h-auto'
     : 'h-[10vmin] w-1/2',
@@ -211,6 +212,27 @@ export const CommanderDamage = ({
   const fontWeight = 'bold';
   const strokeWidth = player.isSide ? '0.4vmax' : '0.7vmin';
 
+  // Show the opponent's commander art in the damage cell, tinted with their
+  // colour so the pod stays colour-coded at a glance.
+  const { artUrl: opponentArt } = useCommanderArt(
+    opponent.settings.useCommanderDamage ? opponent.commanderName : ''
+  );
+  const cellStyle = opponentArt
+    ? {
+        backgroundColor: opponent.color,
+        backgroundImage: `url("${opponentArt}")`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }
+    : { background: opponent.color };
+  const colorTint = opponentArt ? (
+    <div
+      aria-hidden
+      className="absolute inset-0 pointer-events-none mix-blend-multiply"
+      style={{ backgroundColor: opponent.color, opacity: 0.55 }}
+    />
+  ) : null;
+
   return (
     <CommanderDamageContainer
       key={opponentIndex}
@@ -231,8 +253,9 @@ export const CommanderDamage = ({
           e.preventDefault();
         }}
         aria-label={`Commander damage. Player ${player.index}, opponent ${opponent.index}`}
-        style={{ background: opponent.color }}
+        style={cellStyle}
       >
+        {colorTint}
         <CommanderDamageTextContainer $rotation={player.settings.rotation}>
           <OutlinedText
             fontSize={fontSize}
@@ -265,8 +288,9 @@ export const CommanderDamage = ({
               e.preventDefault();
             }}
             aria-label={`Partner Commander damage. Player ${player.index}, opponent ${opponent.index}`}
-            style={{ background: opponent.color }}
+            style={cellStyle}
           >
+            {colorTint}
             <CommanderDamageTextContainer $rotation={player.settings.rotation}>
               <OutlinedText
                 fontSize={fontSize}

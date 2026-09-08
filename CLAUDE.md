@@ -264,9 +264,12 @@ player card shows the commander's card art instead of the flat colour.
   `z-[1]` content in `LifeCounterContentWrapper`. The art layer is a
   container-query square (`max(100cqw,100cqh)`) rotated by
   `player.settings.rotation` so it faces the player and still covers the cell,
-  anchored near the top of the art (`background-position: 50% 12%`).
-  Over the scrim, `iconTheme` is forced to `'light'` (`displayPlayer`) and
-  `Health` gets `hasCommanderArt` to firm up its label.
+  anchored low (`background-position: 50% 38%`) so the character sits below the
+  commander-damage bar. Over the scrim, `iconTheme` is forced to `'light'`
+  (`displayPlayer`) and `Health` gets `hasCommanderArt` to firm up its label.
+- **Damage bar**: each cell in `CommanderDamage` also shows that opponent's
+  commander art (`useCommanderArt(opponent.commanderName)`), tinted with the
+  opponent's colour (`mix-blend-multiply`) so the pod stays colour-coded.
 - **Fallback**: offline / not found / non-commander → no art layer → the
   existing flat `player.color`, unchanged.
 - **PWA**: `vite.config.ts` `runtimeCaching` caches `cards.scryfall.io` images
