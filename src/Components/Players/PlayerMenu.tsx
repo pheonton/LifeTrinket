@@ -7,6 +7,7 @@ import { usePlayers } from '../../Hooks/usePlayers';
 import { useSafeRotate } from '../../Hooks/useSafeRotate';
 import {
   Close,
+  DeckTag,
   Energy,
   Exit,
   Experience,
@@ -514,18 +515,12 @@ const PlayerMenu = ({
               }}
               className="text-primary-main webkit-user-select-none cursor-pointer
               data-[has-deck=true]:bg-secondary-dark rounded-lg border border-transparent
-              data-[has-deck=true]:border-primary-main flex flex-col items-center leading-none px-1"
+              data-[has-deck=true]:border-primary-main"
               data-has-deck={player.deckName ? true : false}
               onClick={handleUpdateDeckName}
               aria-label="Deck name"
             >
-              <NameTag size={iconSize} />
-              <span
-                className="max-w-[12ch] truncate"
-                style={{ fontSize: isSide ? '1vmax' : '1.6vmin' }}
-              >
-                {player.deckName || 'Deck'}
-              </span>
+              <DeckTag size={iconSize} />
             </button>
 
             <button
