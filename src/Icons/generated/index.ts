@@ -1,4 +1,5 @@
 export { default as Close } from './Close';
+export { default as Coffee } from './Coffee';
 export { default as Cog } from './Cog';
 export { default as CommanderTax } from './CommanderTax';
 export { default as Cross } from './Cross';

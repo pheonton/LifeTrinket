@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="52"
+   height="52"
+   viewBox="0 0 52 52"
+   fill="none"
+   version="1.1"
+   id="svg3"
+   sodipodi:docname="Coffee.svg"
+   inkscape:version="1.4 (e7c3feb100, 2024-10-09)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs3" />
+  <sodipodi:namedview
+     id="namedview3"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="14.884615"
+     inkscape:cx="26"
+     inkscape:cy="26"
+     inkscape:window-width="1644"
+     inkscape:window-height="1027"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg3" />
+  <path
+     fill="currentColor"
+     d="M8 22h27v10c0 7.18-5.82 13-13 13h-1C13.82 45 8 39.18 8 32V22Z"
+     id="path1" />
+  <path
+     fill="none"
+     stroke="currentColor"
+     stroke-width="3.54157"
+     d="m 33.118863,24.78629 h 3.098875 a 5.755054,5.755054 0 0 1 0,11.510108 h -3.098875"
+     id="path2" />
+  <path
+     fill="none"
+     stroke="currentColor"
+     stroke-width="3.5"
+     stroke-linecap="round"
+     d="m 13.790697,8.4935401 c -2.5,3.1999999 2.5,5.2999999 0,8.4999999 m 7.5,-9.4999999 c -2.5,3.1999999 2.5,5.2999999 0,8.4999999 m 7.5,-7.4999999 c -2.5,3.1999999 2.5,5.2999999 0,8.4999999"
+     id="path3" />
+</svg>

@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { twc } from 'react-twc';
 import { useAnalytics } from '../../Hooks/useAnalytics';
 import { useMetrics } from '../../Hooks/useMetrics';
@@ -7,6 +7,7 @@ import { usePlayers } from '../../Hooks/usePlayers';
 import { useSafeRotate } from '../../Hooks/useSafeRotate';
 import {
   Close,
+  Coffee,
   DeckTag,
   Energy,
   Exit,
@@ -21,6 +22,7 @@ import {
   Skull,
 } from '../../Icons/generated';
 import { Player, Rotation } from '../../Types/Player';
+import { normalizeDeckName } from '../../Types/DeckStats';
 import { PreStartMode } from '../../Types/Settings';
 import { RotationDivProps } from '../Buttons/CommanderDamage';
 import { IconCheckbox } from '../Misc/IconCheckbox';
@@ -110,6 +112,8 @@ const PlayerMenu = ({
   const endGameDialogRef = useRef<HTMLDialogElement | null>(null);
   const forfeitGameDialogRef = useRef<HTMLDialogElement | null>(null);
   const historyDialogRef = useRef<HTMLDialogElement | null>(null);
+  const deckNameDialogRef = useRef<HTMLDialogElement | null>(null);
+  const [deckNameDraft, setDeckNameDraft] = useState('');
 
   const { isSide } = useSafeRotate({
     rotation: player.settings.rotation,
@@ -128,6 +132,7 @@ const PlayerMenu = ({
     initialGameSettings,
     setPreStartCompleted,
     gameScore,
+    deckStats,
   } = useGlobalSettings();
 
   const analytics = useAnalytics();
@@ -189,13 +194,31 @@ const PlayerMenu = ({
     updatePlayer(updatedPlayer);
   };
 
-  const handleUpdateDeckName = () => {
-    const newDeckName = prompt('Enter deck name', player.deckName);
-    // `null` means the prompt was cancelled - leave the deck name untouched.
-    if (newDeckName === null) {
-      return;
+  // Previously used deck names, from recorded stats plus decks the other
+  // players in this game already picked, sorted and de-duplicated.
+  const knownDecks = useMemo(() => {
+    const byNormalized = new Map<string, string>();
+    for (const stat of Object.values(deckStats)) {
+      byNormalized.set(normalizeDeckName(stat.name), stat.name);
     }
-    updatePlayer({ ...player, deckName: newDeckName.trim() });
+    for (const other of players) {
+      if (other.index === player.index || !other.deckName) continue;
+      const key = normalizeDeckName(other.deckName);
+      if (!byNormalized.has(key)) {
+        byNormalized.set(key, other.deckName.trim());
+      }
+    }
+    return [...byNormalized.values()].sort((a, b) => a.localeCompare(b));
+  }, [deckStats, players, player.index]);
+
+  const openDeckNameDialog = () => {
+    setDeckNameDraft(player.deckName);
+    deckNameDialogRef.current?.show();
+  };
+
+  const saveDeckName = (name: string) => {
+    updatePlayer({ ...player, deckName: name.trim() });
+    deckNameDialogRef.current?.close();
   };
 
   const toggleFullscreen = () => {
@@ -475,12 +498,14 @@ const PlayerMenu = ({
             <button
               data-wake-lock-active={settings.keepAwake}
               style={{
+                cursor: 'pointer',
+                userSelect: 'none',
                 fontSize: buttonFontSize,
+                padding: '2px',
               }}
-              className="text-primary-main px-1 webkit-user-select-none cursor-pointer 
+              className="text-primary-main webkit-user-select-none cursor-pointer
               data-[wake-lock-active=true]:bg-secondary-dark rounded-lg border border-transparent
-              data-[wake-lock-active=true]:border-primary-main
-              "
+              data-[wake-lock-active=true]:border-primary-main"
               onClick={() => {
                 wakeLock.toggleWakeLock();
               }}
@@ -488,7 +513,7 @@ const PlayerMenu = ({
               aria-checked={settings.keepAwake}
               aria-label="Keep awake"
             >
-              Keep Awake
+              <Coffee size={iconSize} />
             </button>
 
             <button
@@ -517,7 +542,7 @@ const PlayerMenu = ({
               data-[has-deck=true]:bg-secondary-dark rounded-lg border border-transparent
               data-[has-deck=true]:border-primary-main"
               data-has-deck={player.deckName ? true : false}
-              onClick={handleUpdateDeckName}
+              onClick={openDeckNameDialog}
               aria-label="Deck name"
             >
               <DeckTag size={iconSize} />
@@ -717,6 +742,79 @@ const PlayerMenu = ({
                   style={{ fontSize: iconSize }}
                 >
                   Yes
+                </button>
+              </div>
+            </div>
+          </div>
+        </dialog>
+
+        <dialog
+          ref={deckNameDialogRef}
+          className="z-[999] size-full bg-background-settings overflow-y-scroll"
+          onClick={() => deckNameDialogRef.current?.close()}
+        >
+          <div className="flex size-full items-center justify-center">
+            <div
+              className="flex flex-col p-4 gap-3 bg-background-default rounded-xl border-none max-w-[92vmin]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h1
+                className="text-center text-text-primary"
+                style={{ fontSize: extraCountersSize }}
+              >
+                Deck name
+              </h1>
+              <input
+                list={`known-decks-${player.index}`}
+                value={deckNameDraft}
+                onChange={(e) => setDeckNameDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveDeckName(deckNameDraft);
+                }}
+                placeholder="Deck name"
+                className="bg-secondary-main text-text-primary rounded-lg px-3 py-2 border border-primary-dark outline-none"
+                style={{ fontSize: iconSize }}
+              />
+              <datalist id={`known-decks-${player.index}`}>
+                {knownDecks.map((deck) => (
+                  <option value={deck} key={deck} />
+                ))}
+              </datalist>
+              {knownDecks.length > 0 && (
+                <div className="flex flex-wrap gap-2 justify-center max-h-[30vmin] overflow-y-auto">
+                  {knownDecks.map((deck) => (
+                    <button
+                      key={deck}
+                      onClick={() => saveDeckName(deck)}
+                      className="bg-secondary-main text-text-primary rounded-full px-3 py-1 border border-primary-dark"
+                      style={{ fontSize: buttonFontSize }}
+                    >
+                      {deck}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="flex justify-evenly gap-2">
+                <button
+                  className="bg-primary-main border border-primary-dark text-text-primary rounded-lg flex-grow"
+                  style={{ fontSize: iconSize }}
+                  onClick={() => deckNameDialogRef.current?.close()}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="bg-primary-main border border-primary-dark text-text-primary rounded-lg flex-grow"
+                  style={{ fontSize: iconSize }}
+                  onClick={() => saveDeckName('')}
+                >
+                  Clear
+                </button>
+                <button
+                  className="bg-primary-main border border-primary-dark text-text-primary rounded-lg flex-grow"
+                  style={{ fontSize: iconSize }}
+                  onClick={() => saveDeckName(deckNameDraft)}
+                >
+                  Save
                 </button>
               </div>
             </div>
