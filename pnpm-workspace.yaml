@@ -1,0 +1,13 @@
+# pnpm reads dependency overrides and build-script approvals from here
+# instead of the "pnpm" field in package.json.
+
+# Transitive packages allowed to run their install scripts (native builds).
+allowBuilds:
+  '@swc/core': true
+  esbuild: true
+  protobufjs: true
+
+# Security pins carried over from the original project's package.json.
+overrides:
+  'glob@>=10.2.0 <10.5.0': '>=10.5.0'
+  'lodash@<=4.17.22': '>=4.17.23'
