@@ -217,28 +217,36 @@ export const CommanderDamage = ({
   const { artUrl: opponentArt } = useCommanderArt(
     opponent.settings.useCommanderDamage ? opponent.commanderName : ''
   );
-  const cellStyle = opponentArt
-    ? {
-        backgroundColor: opponent.color,
-        backgroundImage: `url("${opponentArt}")`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }
-    : { background: opponent.color };
-  // Same treatment as the main background art (LifeCounter): colour multiplied
-  // over the art, plus a light dark wash.
-  const colorTint = opponentArt ? (
-    <>
+  const cellStyle = { backgroundColor: opponent.color };
+  const isSideRotation =
+    player.settings.rotation === Rotation.Side ||
+    player.settings.rotation === Rotation.SideFlipped;
+  // The cell lives inside LifeCounterWrapper (rotated 0/180), so the art needs
+  // the same extra -90 on side seats that the damage number gets - keeps the
+  // little commander picture facing the same way as this player's card.
+  const cellArt = opponentArt ? (
+    <div
+      aria-hidden
+      className="absolute inset-0 overflow-hidden pointer-events-none [container-type:size]"
+    >
       <div
-        aria-hidden
-        className="absolute inset-0 pointer-events-none mix-blend-multiply"
+        className="absolute left-1/2 top-1/2 bg-cover bg-no-repeat"
+        style={{
+          width: isSideRotation ? '100cqh' : '100cqw',
+          height: isSideRotation ? '100cqw' : '100cqh',
+          transform: `translate(-50%, -50%) rotate(${isSideRotation ? -90 : 0}deg)`,
+          backgroundImage: `url("${opponentArt}")`,
+          backgroundPosition: '50% 20%',
+        }}
+      />
+      {/* Same treatment as the main background art (LifeCounter): colour
+          multiplied over the art, plus a light dark wash. */}
+      <div
+        className="absolute inset-0 mix-blend-multiply"
         style={{ backgroundColor: opponent.color, opacity: 0.55 }}
       />
-      <div
-        aria-hidden
-        className="absolute inset-0 pointer-events-none bg-black/15"
-      />
-    </>
+      <div className="absolute inset-0 bg-black/15" />
+    </div>
   ) : null;
 
   return (
@@ -263,7 +271,7 @@ export const CommanderDamage = ({
         aria-label={`Commander damage. Player ${player.index}, opponent ${opponent.index}`}
         style={cellStyle}
       >
-        {colorTint}
+        {cellArt}
         <CommanderDamageTextContainer $rotation={player.settings.rotation}>
           <OutlinedText
             fontSize={fontSize}
@@ -298,7 +306,7 @@ export const CommanderDamage = ({
             aria-label={`Partner Commander damage. Player ${player.index}, opponent ${opponent.index}`}
             style={cellStyle}
           >
-            {colorTint}
+            {cellArt}
             <CommanderDamageTextContainer $rotation={player.settings.rotation}>
               <OutlinedText
                 fontSize={fontSize}

@@ -334,27 +334,30 @@ const LifeCounter = ({ player, opponents, matchScore }: LifeCounterProps) => {
             aria-hidden
             className="absolute z-[-1] isolate overflow-hidden pointer-events-none [container-type:size]"
             style={
+              // Starts right after the commander-damage bar (10vmin / 6vmax).
               isSideRotation
                 ? { top: 0, bottom: 0, left: '6vmax', right: 0 }
                 : { top: '10vmin', bottom: 0, left: 0, right: 0 }
             }
           >
-            {/* Square sized to the longer edge so it still covers this region
-                after being rotated to face the player. Only spans the card
-                below/beside the commander-damage bar, so the top of the art
-                isn't hidden behind it. */}
+            {/* Sized to this region (width/height swapped for the side seats so
+                that after the -90deg turn its footprint is still the region),
+                so `background-position` actually controls the crop instead of
+                the art always being centre-clipped. 50% 20% = keep the top of
+                the art (the commander), crop the sides and bottom. */}
             <div
-              className="absolute left-1/2 top-1/2 bg-cover"
+              className="absolute left-1/2 top-1/2 bg-cover bg-no-repeat"
               style={{
-                width: 'max(100cqw, 100cqh)',
-                height: 'max(100cqw, 100cqh)',
-                // The wrapper already rotates by calcRotation (0/180); add the
-                // rest so the art ends up facing the player.
+                width: isSideRotation ? '100cqh' : '100cqw',
+                height: isSideRotation ? '100cqw' : '100cqh',
+                // Match the net on-screen rotation of the life number: the
+                // wrapper already contributes calcRotation (0 or 180); side
+                // seats need a further -90 to end up facing the player.
                 transform: `translate(-50%, -50%) rotate(${
-                  player.settings.rotation - calcRotation
+                  isSideRotation ? -90 : 0
                 }deg)`,
                 backgroundImage: `url("${commanderArtUrl}")`,
-                backgroundPosition: '50% 12%',
+                backgroundPosition: '50% 20%',
               }}
             />
             {/* Same treatment as the opponent art in the damage bar: the
