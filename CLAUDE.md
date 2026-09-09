@@ -225,8 +225,11 @@ Cross-game statistics keyed by deck name, persisted in `localStorage` under
 `deckStats`.
 
 - **Entry**: each player sets a deck name from the in-game player menu
-  (`src/Components/Players/PlayerMenu.tsx`, `handleUpdateDeckName`). The name
-  lives on `Player.deckName` and persists across games within a match.
+  (`src/Components/Players/PlayerMenu.tsx`) via the deck-name dialog
+  (`openDeckNameDialog` / `commitDeckName` / `pickDeck`). It has type-to-filter
+  chips of previously-used deck names (from `deckStats` plus decks the other
+  players in this game picked), most-recently-played first, and saves on close.
+  The name lives on `Player.deckName` and persists across games within a match.
 - **Recording**: `Play.tsx` calls `recordGame(players, winnerIndex)` from both
   `<GameOver>` exit handlers. Only runs when `settings.showMatchScore` is on and
   there are ≥2 players (that's what triggers game-over detection). Games
@@ -248,8 +251,11 @@ player card shows the commander's card art instead of the flat colour.
 
 - **Entry**: a button next to the colour picker in the player menu
   (`src/Components/Players/PlayerMenu.tsx`), shown only for commander games,
-  opening its own dialog with a live Scryfall search + thumbnail. Committed to
-  `player.commanderName` on dialog close.
+  opening its own dialog with a live Scryfall search + thumbnail. The dialog
+  saves on close (no Save button) - the `Check` icon in the header is the
+  "done" affordance, and clicking the Scryfall result commits that commander
+  (pinning the canonical card name) and closes, mirroring the deck-name chips.
+  Committed to `player.commanderName`.
 - **Colour**: picking a commander also sets `player.color` (and `iconTheme`)
   from a colour sampled off the art (`src/Utils/imageColor.ts` /
   `src/Hooks/useDerivedColor.ts`) - so colour isn't a second thing to set. The
@@ -265,16 +271,27 @@ player card shows the commander's card art instead of the flat colour.
   the shared cache during render). The image URL is `art_crop`.
 - **Render**: `LifeCounter` reads `useCommanderArt(player.commanderName)` and,
   when there's a URL, adds an inset art container as the first child of
-  `LifeCounterWrapper` at `z-[-1]` (behind everything). The container only
-  spans the card *below/beside* the commander-damage bar (`top: 10vmin` /
-  `left: 6vmax`), so the top of the art isn't hidden behind it. Inside is a
-  container-query square (`max(100cqw,100cqh)`) rotated by
-  `player.settings.rotation - calcRotation` (the wrapper already applies
-  `calcRotation`) so it ends up facing the player, plus the overlay. Over the
-  overlay `iconTheme` is forced to `'light'` (`displayPlayer`) and `Health`
-  gets `hasCommanderArt` to firm up its label.
-- **Damage bar**: each cell in `CommanderDamage` also shows that opponent's
-  commander art (`useCommanderArt(opponent.commanderName)`).
+  `LifeCounterWrapper` at `z-[-1] isolate` (behind everything),
+  `[container-type:size]` + `overflow-hidden`. The container only spans the
+  card *below/beside* the commander-damage bar (`top: 10vmin` non-side /
+  `left: 6vmax` side), so the bar never overlaps the art. Inside is a single
+  layer sized to that rectangle - `100cqw × 100cqh`, **swapped** to
+  `100cqh × 100cqw` for side seats so it still covers after the turn - with
+  `background-size: cover` and `background-position: 50% 20%` (this is what
+  frames the crop; an over-scan square would centre-clip and make
+  `background-position` inert). It is rotated `isSideRotation ? -90 : 0`.
+  That angle matches the **net on-screen rotation of the life number**
+  (`OutlinedText`: side seats get -90), *not* the wrapper's `calcRotation`
+  (0/180) - the wrapper contributes the 0/180, side seats need the extra -90
+  to face the player. Over the art `iconTheme` is forced to `'light'`
+  (`displayPlayer`) and `Health` gets `hasCommanderArt` to firm up its label.
+- **Damage bar**: each cell in `CommanderDamage` shows that opponent's
+  commander art (`useCommanderArt(opponent.commanderName)`) with the identical
+  layer treatment - own `[container-type:size]` wrapper, rect-sized/swapped,
+  `rotate(isSideRotation ? -90 : 0)`, `background-position: 50% 20%`, same
+  overlay - so a mini reads the same way as the big background. Framing on the
+  minis is a known limitation: the cells are very wide-and-short, so one crop
+  position can't suit every card.
 - **Overlay** (same on the background art and every damage-bar cell): the
   relevant player's colour at `mix-blend-multiply` ~0.55 plus a light
   `bg-black/15` - dims for legibility and casts the art toward that player's
