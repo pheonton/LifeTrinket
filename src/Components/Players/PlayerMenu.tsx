@@ -297,6 +297,20 @@ const PlayerMenu = ({
     updatePlayer(updated);
   };
 
+  // Clicking the Scryfall preview picks that commander and closes the dialog -
+  // same "tap the result to choose it" flow as the deck-name chips. Pin the
+  // canonical card name so what we store isn't the half-typed query.
+  const pickCommander = () => {
+    const resolved = commanderPreview.cardName;
+    if (resolved) {
+      setCommanderQuery(resolved);
+      if (commanderInputRef.current) {
+        commanderInputRef.current.value = resolved;
+      }
+    }
+    commanderDialogRef.current?.close();
+  };
+
   const toggleFullscreen = () => {
     if (fullscreen.isFullscreen) {
       fullscreen.disableFullscreen();
@@ -960,7 +974,12 @@ const PlayerMenu = ({
                 )}
                 {commanderPreview.status === 'found' &&
                   commanderPreview.artUrl && (
-                    <>
+                    <button
+                      type="button"
+                      onClick={pickCommander}
+                      aria-label={`Use ${commanderPreview.cardName}`}
+                      className="flex items-center gap-2 text-left cursor-pointer rounded-md border border-transparent p-1 -m-1 hover:border-primary-main transition-colors"
+                    >
                       <img
                         src={commanderPreview.artUrl}
                         alt=""
@@ -970,7 +989,7 @@ const PlayerMenu = ({
                       <span className="text-text-primary">
                         {commanderPreview.cardName}
                       </span>
-                    </>
+                    </button>
                   )}
                 {commanderPreview.status === 'notfound' &&
                   commanderQuery.trim() !== '' && (
