@@ -6,6 +6,7 @@ import { useGlobalSettings } from '../../Hooks/useGlobalSettings';
 import { usePlayers } from '../../Hooks/usePlayers';
 import { useSafeRotate } from '../../Hooks/useSafeRotate';
 import {
+  Check,
   Close,
   Coffee,
   CommanderTax,
@@ -876,10 +877,10 @@ const PlayerMenu = ({
                 <span className="flex-grow font-semibold">Deck name</span>
                 <button
                   onClick={() => deckNameDialogRef.current?.close()}
-                  aria-label="Close"
+                  aria-label="Save"
                   className="text-primary-main"
                 >
-                  <Close size={buttonFontSize} />
+                  <Check size={buttonFontSize} />
                 </button>
               </div>
               <input
@@ -939,10 +940,10 @@ const PlayerMenu = ({
                 <span className="flex-grow font-semibold">Commander</span>
                 <button
                   onClick={() => commanderDialogRef.current?.close()}
-                  aria-label="Close"
+                  aria-label="Save"
                   className="text-primary-main"
                 >
-                  <Close size={buttonFontSize} />
+                  <Check size={buttonFontSize} />
                 </button>
               </div>
               <span
