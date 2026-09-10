@@ -14,7 +14,7 @@
     "build": "tsc && vite build",
     "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "generate-icons": "npx @svgr/cli src/Icons/svgs",
+    "generate-icons": "svgr src/Icons/svgs",
     "release": "bash scripts/create-release.sh"
   },
   "dependencies": {
