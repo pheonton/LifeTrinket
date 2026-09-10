@@ -78,12 +78,10 @@ const ButtonsSections = twc.div`
   px-2
 `;
 
+// Size comes from the caller (pickerButtonSize) so it scales with the viewport
+// like the rest of the menu's icons instead of pinning at a px cap.
 const ColorPickerButton = twc.div`
-  h-[8vmax]
-  w-[8vmax]
   relative
-  max-h-12
-  max-w-12
   rounded-full
   cursor-pointer
   overflow-hidden
@@ -434,6 +432,9 @@ const PlayerMenu = ({
   const buttonFontSize = isSide ? '1.5vmax' : '3vmin';
   const iconSize = isSide ? '6vmin' : '3vmax';
   const extraCountersSize = isSide ? '8vmin' : '4vmax';
+  // The colour + commander buttons are filled circles, sized ~2x a counter
+  // icon. Kept in the same viewport units so they resize with everything else.
+  const pickerButtonSize = isSide ? '16vmin' : '8vmax';
 
   const calcRotation =
     player.settings.rotation === Rotation.Side
@@ -471,7 +472,10 @@ const PlayerMenu = ({
 
         <BetterRowContainer>
           <TogglesSection>
-            <ColorPickerButton aria-label="Color picker">
+            <ColorPickerButton
+              aria-label="Color picker"
+              style={{ height: pickerButtonSize, width: pickerButtonSize }}
+            >
               <input
                 onChange={handleColorChange}
                 type="color"
@@ -492,7 +496,8 @@ const PlayerMenu = ({
                 type="button"
                 aria-label="Commander"
                 onClick={openCommanderDialog}
-                className="h-[8vmax] w-[8vmax] max-h-12 max-w-12 relative rounded-full overflow-hidden border border-primary-dark bg-secondary-main flex items-center justify-center text-primary-main"
+                style={{ height: pickerButtonSize, width: pickerButtonSize }}
+                className="relative rounded-full overflow-hidden border border-primary-dark bg-secondary-main flex items-center justify-center text-primary-main"
               >
                 {commanderButtonArt.artUrl ? (
                   <img
