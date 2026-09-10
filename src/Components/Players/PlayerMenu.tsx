@@ -39,12 +39,12 @@ const PlayerMenuWrapper = twc.div`
   absolute
   size-full
   bg-background-settings
-  backdrop-blur-[3px]
   items-center
   justify-center
   z-[2]
   webkit-user-select-none
-  transition-all
+  transition-[translate]
+  duration-200
 `;
 
 const BetterRowContainer = twc.div`
