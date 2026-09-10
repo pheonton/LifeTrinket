@@ -221,13 +221,10 @@ const Start = () => {
       isPWA,
     });
 
-    try {
-      if (settings.goFullscreenOnStart) {
-        fullscreen.enableFullscreen();
-      }
-    } catch (error) {
-      console.error(error);
-    }
+    // Resuming continues the same game - keep whatever fullscreen state the
+    // player is in. If they left fullscreen mid-game, don't force it back.
+    // (Forcing it here overrode a deliberate exit; "Fullscreen on start" only
+    // applies to a fresh game.)
 
     if (settings.keepAwake && !wakeLock.active) {
       wakeLock.request();
