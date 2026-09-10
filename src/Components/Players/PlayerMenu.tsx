@@ -194,9 +194,11 @@ const PlayerMenu = ({
   };
 
   const handleGoToStart = () => {
+    // Keep commanderName here: the saved game is a local pause/resume of *this*
+    // game (same as a reload), not a share. It's still stripped from the
+    // QR-share (`encodeGameState`) and cleared when a new game starts.
     saveCurrentGame({
-      // Commander is a local-only cosmetic; leave it out of the saved game.
-      players: players.map((p) => ({ ...p, commanderName: '' })),
+      players,
       initialGameSettings,
       gameScore,
     });
@@ -950,8 +952,8 @@ const PlayerMenu = ({
                 className="text-text-secondary"
                 style={{ fontSize: buttonFontSize }}
               >
-                Shows the card art on this player&apos;s side. Not saved or
-                shared - just for this game.
+                Shows the card art on this player&apos;s side. Not shared, and
+                cleared when you start a new game.
               </span>
               <input
                 ref={commanderInputRef}

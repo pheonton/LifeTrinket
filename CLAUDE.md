@@ -260,11 +260,12 @@ player card shows the commander's card art instead of the flat colour.
   from a colour sampled off the art (`src/Utils/imageColor.ts` /
   `src/Hooks/useDerivedColor.ts`) - so colour isn't a second thing to set. The
   colour picker still works as a manual override and for non-commander games.
-- **Lifetime**: local cosmetic only. It's on the player so a mid-game reload
-  keeps it (`players` localStorage) and it lasts the match, but it is
-  **stripped from the QR-share** (`encodeGameState` in `src/Utils/shareState.ts`)
-  and the **pause/resume snapshot** (`handleGoToStart` in `PlayerMenu.tsx`).
-  Cleared when a new game starts (`getInitialPlayers`).
+- **Lifetime**: local cosmetic only. It's on the player, so it survives a
+  mid-game reload (`players` localStorage) and a pause/resume (`handleGoToStart`
+  keeps it in the saved game - that's a local continuation of the same game).
+  It is **stripped from the QR-share** (`encodeGameState` in
+  `src/Utils/shareState.ts`) and cleared when a new game starts
+  (`getInitialPlayers`).
 - **Fetch**: `src/Utils/scryfall.ts` (`fetchCommanderArt`, fuzzy
   `api.scryfall.com/cards/named`, in-memory result + in-flight cache, never
   throws) behind `src/Hooks/useCommanderArt.ts` (debounced, derives state from
