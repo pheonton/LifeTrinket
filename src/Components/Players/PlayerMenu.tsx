@@ -168,7 +168,14 @@ const CommanderField = ({
             className="h-[9vmin] w-[14vmin] object-cover rounded-md border border-primary-dark"
             style={{ objectPosition: '50% 15%' }}
           />
-          <span className="text-text-primary">{preview.cardName}</span>
+          <span className="flex flex-col leading-tight">
+            <span className="text-text-primary">{preview.cardName}</span>
+            {preview.artist && (
+              <span className="text-text-secondary" style={{ fontSize: '0.8em' }}>
+                Art: {preview.artist}
+              </span>
+            )}
+          </span>
         </button>
       )}
       {preview.status === 'notfound' && query.trim() !== '' && (

@@ -147,6 +147,19 @@ export const InfoDialog = ({
             concepts, such as "Commander", used are property of Wizards of the
             Coast. ©Wizards of the Coast LLC.
           </Paragraph>
+          <Paragraph className="mt-2">
+            Commander card art is fetched on demand from{' '}
+            <a
+              href="https://scryfall.com"
+              className="text-text-secondary underline"
+              target="_blank"
+            >
+              Scryfall
+            </a>{' '}
+            and never stored. Card images and artwork are © Wizards of the Coast
+            and the credited illustrators; the artist is shown in the commander
+            picker.
+          </Paragraph>
         </div>
       </div>
 

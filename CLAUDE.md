@@ -276,7 +276,13 @@ player card shows the commander's card art instead of the flat colour.
 - **Fetch**: `src/Utils/scryfall.ts` (`fetchCommanderArt`, fuzzy
   `api.scryfall.com/cards/named`, in-memory result + in-flight cache, never
   throws) behind `src/Hooks/useCommanderArt.ts` (debounced, derives state from
-  the shared cache during render). The image URL is `art_crop`.
+  the shared cache during render). Returns `{ artUrl (art_crop), cardName,
+  artist }`.
+- **Attribution**: `art_crop` drops the card's printed artist line, so
+  Scryfall asks the artist be creditable where the crop is shown. The picker
+  preview shows `Art: <artist>` under the card name (also visible mid-game by
+  reopening the dialog on a set commander), and `InfoDialog` credits Scryfall +
+  WotC generally.
 - **Render**: `LifeCounter` reads `useCommanderArt(player.commanderName)` and,
   when there's a URL, adds an inset art container as the first child of
   `LifeCounterWrapper` at `z-[-1] isolate` (behind everything),

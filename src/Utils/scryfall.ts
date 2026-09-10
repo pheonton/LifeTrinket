@@ -12,15 +12,23 @@ import { normalizeDeckName } from '../Types/DeckStats';
 export type CommanderArt = {
   artUrl: string | null;
   cardName: string | null;
+  // Scryfall asks that the artist be creditable wherever an `art_crop` is
+  // shown (the crop drops the card's printed artist line).
+  artist: string | null;
 };
 
-const NOT_FOUND: CommanderArt = { artUrl: null, cardName: null };
+const NOT_FOUND: CommanderArt = {
+  artUrl: null,
+  cardName: null,
+  artist: null,
+};
 
 type ScryfallImageUris = { art_crop?: string };
 type ScryfallCard = {
   name?: string;
+  artist?: string;
   image_uris?: ScryfallImageUris;
-  card_faces?: { image_uris?: ScryfallImageUris }[];
+  card_faces?: { image_uris?: ScryfallImageUris; artist?: string }[];
 };
 
 const resultCache = new Map<string, CommanderArt>();
@@ -32,6 +40,7 @@ const pickArt = (card: ScryfallCard): CommanderArt => ({
     card.card_faces?.[0]?.image_uris?.art_crop ??
     null,
   cardName: card.name ?? null,
+  artist: card.artist ?? card.card_faces?.[0]?.artist ?? null,
 });
 
 /**

@@ -12,7 +12,12 @@ export type CommanderArtStatus = 'idle' | 'loading' | 'found' | 'notfound';
 
 type UseCommanderArt = CommanderArt & { status: CommanderArtStatus };
 
-const IDLE: UseCommanderArt = { artUrl: null, cardName: null, status: 'idle' };
+const IDLE: UseCommanderArt = {
+  artUrl: null,
+  cardName: null,
+  artist: null,
+  status: 'idle',
+};
 
 const settle = (result: CommanderArt): UseCommanderArt => ({
   ...result,
