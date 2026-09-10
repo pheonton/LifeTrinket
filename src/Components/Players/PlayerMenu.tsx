@@ -432,9 +432,9 @@ const PlayerMenu = ({
   const buttonFontSize = isSide ? '1.5vmax' : '3vmin';
   const iconSize = isSide ? '6vmin' : '3vmax';
   const extraCountersSize = isSide ? '8vmin' : '4vmax';
-  // The colour + commander buttons are filled circles, sized ~2x a counter
-  // icon. Kept in the same viewport units so they resize with everything else.
-  const pickerButtonSize = isSide ? '16vmin' : '8vmax';
+  // The colour + commander buttons are filled circles; match the counter-icon
+  // size (same viewport units, so they resize with the rest of the menu).
+  const pickerButtonSize = extraCountersSize;
 
   const calcRotation =
     player.settings.rotation === Rotation.Side
