@@ -5,6 +5,8 @@
 [![React](https://img.shields.io/badge/React-19.2.0-61DAFB?logo=react)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 
+![Life Trinket - a four-player Commander game with commander art backgrounds, per-deck names and commander-damage tracking](public/screenshot.png)
+
 > **Fork notice:** This is a fork of [Vikeo/LifeTrinket](https://github.com/Vikeo/LifeTrinket).
 > It is deployed on **Cloudflare Pages** instead of Firebase Hosting, and ships
 > with no third-party analytics. See the original project for the canonical
