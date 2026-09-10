@@ -38,6 +38,7 @@ export const playerSchema = z.object({
   name: z.string(),
   deckName: z.string().optional().default(''),
   commanderName: z.string().optional().default(''),
+  partnerName: z.string().optional().default(''),
 });
 
 export const gameScoreSchema = z.record(z.string(), z.number());

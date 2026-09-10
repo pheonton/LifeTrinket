@@ -251,11 +251,18 @@ player card shows the commander's card art instead of the flat colour.
 
 - **Entry**: a button next to the colour picker in the player menu
   (`src/Components/Players/PlayerMenu.tsx`), shown only for commander games,
-  opening its own dialog with a live Scryfall search + thumbnail. The dialog
-  saves on close (no Save button) - the `Check` icon in the header is the
-  "done" affordance, and clicking the Scryfall result commits that commander
-  (pinning the canonical card name) and closes, mirroring the deck-name chips.
-  Committed to `player.commanderName`.
+  opening its own dialog with a live Scryfall search + thumbnail (`CommanderField`).
+  The dialog saves on close (no Save button) - the `Check` icon in the header is
+  the "done" affordance. Clicking a Scryfall result pins the canonical card name
+  into that field; in single-commander games it also closes the dialog, in
+  partner games it doesn't (you've got two fields to fill). Committed to
+  `player.commanderName`.
+- **Partner**: when `player.settings.usePartner` is on, the dialog shows a
+  second `CommanderField` for `player.partnerName`, and each opponent's
+  commander-damage cell splits so the partner half shows the partner's art
+  (falling back to the primary art until a partner is set). The play-field
+  background art stays the primary commander only. Colour is derived from the
+  primary commander only.
 - **Colour**: picking a commander also sets `player.color` (and `iconTheme`)
   from a colour sampled off the art (`src/Utils/imageColor.ts` /
   `src/Hooks/useDerivedColor.ts`) - so colour isn't a second thing to set. The

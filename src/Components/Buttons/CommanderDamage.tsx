@@ -213,9 +213,15 @@ export const CommanderDamage = ({
   const strokeWidth = player.isSide ? '0.4vmax' : '0.7vmin';
 
   // Show the opponent's commander art in the damage cell, tinted with their
-  // colour so the pod stays colour-coded at a glance.
+  // colour so the pod stays colour-coded at a glance. Partner games track two
+  // commanders per opponent, so each half of the cell gets its own art.
   const { artUrl: opponentArt } = useCommanderArt(
     opponent.settings.useCommanderDamage ? opponent.commanderName : ''
+  );
+  const { artUrl: opponentPartnerArt } = useCommanderArt(
+    opponent.settings.useCommanderDamage && opponent.settings.usePartner
+      ? opponent.partnerName
+      : ''
   );
   const cellStyle = { backgroundColor: opponent.color };
   const isSideRotation =
@@ -224,30 +230,31 @@ export const CommanderDamage = ({
   // The cell lives inside LifeCounterWrapper (rotated 0/180), so the art needs
   // the same extra -90 on side seats that the damage number gets - keeps the
   // little commander picture facing the same way as this player's card.
-  const cellArt = opponentArt ? (
-    <div
-      aria-hidden
-      className="absolute inset-0 overflow-hidden pointer-events-none [container-type:size]"
-    >
+  const cellArt = (artUrl: string | null) =>
+    artUrl ? (
       <div
-        className="absolute left-1/2 top-1/2 bg-cover bg-no-repeat"
-        style={{
-          width: isSideRotation ? '100cqh' : '100cqw',
-          height: isSideRotation ? '100cqw' : '100cqh',
-          transform: `translate(-50%, -50%) rotate(${isSideRotation ? -90 : 0}deg)`,
-          backgroundImage: `url("${opponentArt}")`,
-          backgroundPosition: '50% 20%',
-        }}
-      />
-      {/* Same treatment as the main background art (LifeCounter): colour
-          multiplied over the art, plus a light dark wash. */}
-      <div
-        className="absolute inset-0 mix-blend-multiply"
-        style={{ backgroundColor: opponent.color, opacity: 0.55 }}
-      />
-      <div className="absolute inset-0 bg-black/15" />
-    </div>
-  ) : null;
+        aria-hidden
+        className="absolute inset-0 overflow-hidden pointer-events-none [container-type:size]"
+      >
+        <div
+          className="absolute left-1/2 top-1/2 bg-cover bg-no-repeat"
+          style={{
+            width: isSideRotation ? '100cqh' : '100cqw',
+            height: isSideRotation ? '100cqw' : '100cqh',
+            transform: `translate(-50%, -50%) rotate(${isSideRotation ? -90 : 0}deg)`,
+            backgroundImage: `url("${artUrl}")`,
+            backgroundPosition: '50% 20%',
+          }}
+        />
+        {/* Same treatment as the main background art (LifeCounter): colour
+            multiplied over the art, plus a light dark wash. */}
+        <div
+          className="absolute inset-0 mix-blend-multiply"
+          style={{ backgroundColor: opponent.color, opacity: 0.55 }}
+        />
+        <div className="absolute inset-0 bg-black/15" />
+      </div>
+    ) : null;
 
   return (
     <CommanderDamageContainer
@@ -271,7 +278,7 @@ export const CommanderDamage = ({
         aria-label={`Commander damage. Player ${player.index}, opponent ${opponent.index}`}
         style={cellStyle}
       >
-        {cellArt}
+        {cellArt(opponentArt)}
         <CommanderDamageTextContainer $rotation={player.settings.rotation}>
           <OutlinedText
             fontSize={fontSize}
@@ -306,7 +313,7 @@ export const CommanderDamage = ({
             aria-label={`Partner Commander damage. Player ${player.index}, opponent ${opponent.index}`}
             style={cellStyle}
           >
-            {cellArt}
+            {cellArt(opponentPartnerArt || opponentArt)}
             <CommanderDamageTextContainer $rotation={player.settings.rotation}>
               <OutlinedText
                 fontSize={fontSize}

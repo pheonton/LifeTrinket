@@ -233,6 +233,7 @@ export const createInitialPlayers = ({
       name: '',
       deckName: '',
       commanderName: '',
+      partnerName: '',
       isMonarch: false,
     };
 

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type RefObject } from 'react';
 import { twc } from 'react-twc';
 import { useAnalytics } from '../../Hooks/useAnalytics';
 import { useMetrics } from '../../Hooks/useMetrics';
@@ -104,6 +104,82 @@ type PlayerMenuProps = {
   totalPlayers: number;
 };
 
+type CommanderFieldProps = {
+  which: 'commander' | 'partner';
+  showLabel: boolean;
+  ref: RefObject<HTMLInputElement | null>;
+  query: string;
+  setQuery: (v: string) => void;
+  preview: ReturnType<typeof useCommanderArt>;
+  fontSize: string;
+  onEnter: () => void;
+  onPick: () => void;
+};
+
+// One "type a name -> Scryfall preview -> tap to pick" field. Used for the
+// commander and, in partner games, the partner. The label only shows when
+// there are two fields to tell apart.
+const CommanderField = ({
+  which,
+  showLabel,
+  ref,
+  query,
+  setQuery,
+  preview,
+  fontSize,
+  onEnter,
+  onPick,
+}: CommanderFieldProps) => (
+  <div className="flex flex-col gap-1.5">
+    {showLabel && (
+      <span className="font-medium text-text-secondary" style={{ fontSize }}>
+        {which === 'commander' ? 'Commander' : 'Partner'}
+      </span>
+    )}
+    <input
+      ref={ref}
+      onFocus={(e) => e.currentTarget.select()}
+      onChange={(e) => setQuery(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onEnter();
+      }}
+      placeholder={
+        which === 'commander'
+          ? "e.g. Atraxa, Praetors' Voice"
+          : 'e.g. Tymna the Weaver'
+      }
+      className="w-full bg-secondary-main text-text-primary rounded-lg px-2 py-1.5 border border-primary-dark outline-none"
+      style={{ fontSize }}
+    />
+    <div className="flex items-center gap-2 min-h-[9vmin]" style={{ fontSize }}>
+      {preview.status === 'loading' && (
+        <span className="text-text-secondary italic">Searching Scryfall...</span>
+      )}
+      {preview.status === 'found' && preview.artUrl && (
+        <button
+          type="button"
+          onClick={onPick}
+          aria-label={`Use ${preview.cardName}`}
+          className="flex items-center gap-2 text-left cursor-pointer rounded-md border border-transparent p-1 -m-1 hover:border-primary-main transition-colors"
+        >
+          <img
+            src={preview.artUrl}
+            alt=""
+            className="h-[9vmin] w-[14vmin] object-cover rounded-md border border-primary-dark"
+            style={{ objectPosition: '50% 15%' }}
+          />
+          <span className="text-text-primary">{preview.cardName}</span>
+        </button>
+      )}
+      {preview.status === 'notfound' && query.trim() !== '' && (
+        <span className="text-text-secondary italic">
+          No card found - the art won&apos;t show.
+        </span>
+      )}
+    </div>
+  </div>
+);
+
 const PlayerMenu = ({
   player,
   setShowPlayerMenu,
@@ -121,9 +197,12 @@ const PlayerMenu = ({
   const [deckNameQuery, setDeckNameQuery] = useState('');
   const commanderDialogRef = useRef<HTMLDialogElement | null>(null);
   const commanderInputRef = useRef<HTMLInputElement | null>(null);
+  const partnerInputRef = useRef<HTMLInputElement | null>(null);
   const [commanderQuery, setCommanderQuery] = useState('');
+  const [partnerQuery, setPartnerQuery] = useState('');
   // Preview inside the picker dialog; the play-field art has its own lookup.
   const commanderPreview = useCommanderArt(commanderQuery);
+  const partnerPreview = useCommanderArt(partnerQuery);
   // Colour sampled from the previewed art - becomes the player's colour so
   // they don't have to set both.
   const commanderColor = useDerivedColor(commanderPreview.artUrl);
@@ -277,20 +356,36 @@ const PlayerMenu = ({
 
   const openCommanderDialog = () => {
     setCommanderQuery(player.commanderName);
+    setPartnerQuery(player.partnerName);
     if (commanderInputRef.current) {
       commanderInputRef.current.value = player.commanderName;
+    }
+    if (partnerInputRef.current) {
+      partnerInputRef.current.value = player.partnerName;
     }
     commanderDialogRef.current?.show();
   };
 
   const commitCommander = () => {
-    const next = (commanderInputRef.current?.value ?? '').trim();
-    if (next === player.commanderName) return;
+    const nextCommander = (commanderInputRef.current?.value ?? '').trim();
+    const nextPartner = (partnerInputRef.current?.value ?? '').trim();
+    const commanderChanged = nextCommander !== player.commanderName;
+    const partnerChanged = nextPartner !== player.partnerName;
+    if (!commanderChanged && !partnerChanged) return;
 
-    const updated: Player = { ...player, commanderName: next };
-    // Adopt a colour sampled from the art so colour and commander aren't two
-    // separate things to set.
-    if (next && commanderColor && commanderColor !== player.color) {
+    const updated: Player = {
+      ...player,
+      commanderName: nextCommander,
+      partnerName: nextPartner,
+    };
+    // Adopt a colour sampled from the (primary) commander art so colour and
+    // commander aren't two separate things to set.
+    if (
+      commanderChanged &&
+      nextCommander &&
+      commanderColor &&
+      commanderColor !== player.color
+    ) {
       updated.color = commanderColor;
       updated.iconTheme =
         checkContrast(commanderColor, '#00000080') === 'Fail'
@@ -300,18 +395,25 @@ const PlayerMenu = ({
     updatePlayer(updated);
   };
 
-  // Clicking the Scryfall preview picks that commander and closes the dialog -
-  // same "tap the result to choose it" flow as the deck-name chips. Pin the
-  // canonical card name so what we store isn't the half-typed query.
-  const pickCommander = () => {
-    const resolved = commanderPreview.cardName;
+  // Clicking a Scryfall preview picks that commander into its field - same "tap
+  // the result to choose it" flow as the deck-name chips. Pin the canonical
+  // card name so what we store isn't the half-typed query. With a partner
+  // there are two fields to fill, so let the check / tap-outside close it;
+  // single-commander games close on the pick.
+  const pickCommander = (which: 'commander' | 'partner') => {
+    const preview = which === 'partner' ? partnerPreview : commanderPreview;
+    const inputRef = which === 'partner' ? partnerInputRef : commanderInputRef;
+    const setQuery = which === 'partner' ? setPartnerQuery : setCommanderQuery;
+    const resolved = preview.cardName;
     if (resolved) {
-      setCommanderQuery(resolved);
-      if (commanderInputRef.current) {
-        commanderInputRef.current.value = resolved;
+      setQuery(resolved);
+      if (inputRef.current) {
+        inputRef.current.value = resolved;
       }
     }
-    commanderDialogRef.current?.close();
+    if (!player.settings.usePartner) {
+      commanderDialogRef.current?.close();
+    }
   };
 
   const toggleFullscreen = () => {
@@ -955,52 +1057,30 @@ const PlayerMenu = ({
                 Shows the card art on this player&apos;s side. Cosmetic only -
                 cleared when you start a new game.
               </span>
-              <input
+              <CommanderField
+                which="commander"
+                showLabel={player.settings.usePartner}
                 ref={commanderInputRef}
-                onFocus={(e) => e.currentTarget.select()}
-                onChange={(e) => setCommanderQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') commanderDialogRef.current?.close();
-                }}
-                placeholder="e.g. Atraxa, Praetors' Voice"
-                className="bg-secondary-main text-text-primary rounded-lg px-2 py-1.5 border border-primary-dark outline-none"
-                style={{ fontSize: buttonFontSize }}
+                query={commanderQuery}
+                setQuery={setCommanderQuery}
+                preview={commanderPreview}
+                fontSize={buttonFontSize}
+                onEnter={() => commanderDialogRef.current?.close()}
+                onPick={() => pickCommander('commander')}
               />
-              <div
-                className="flex items-center gap-2 min-h-[9vmin]"
-                style={{ fontSize: buttonFontSize }}
-              >
-                {commanderPreview.status === 'loading' && (
-                  <span className="text-text-secondary italic">
-                    Searching Scryfall...
-                  </span>
-                )}
-                {commanderPreview.status === 'found' &&
-                  commanderPreview.artUrl && (
-                    <button
-                      type="button"
-                      onClick={pickCommander}
-                      aria-label={`Use ${commanderPreview.cardName}`}
-                      className="flex items-center gap-2 text-left cursor-pointer rounded-md border border-transparent p-1 -m-1 hover:border-primary-main transition-colors"
-                    >
-                      <img
-                        src={commanderPreview.artUrl}
-                        alt=""
-                        className="h-[9vmin] w-[14vmin] object-cover rounded-md border border-primary-dark"
-                        style={{ objectPosition: '50% 15%' }}
-                      />
-                      <span className="text-text-primary">
-                        {commanderPreview.cardName}
-                      </span>
-                    </button>
-                  )}
-                {commanderPreview.status === 'notfound' &&
-                  commanderQuery.trim() !== '' && (
-                    <span className="text-text-secondary italic">
-                      No card found - the art won&apos;t show.
-                    </span>
-                  )}
-              </div>
+              {player.settings.usePartner && (
+                <CommanderField
+                  which="partner"
+                  showLabel
+                  ref={partnerInputRef}
+                  query={partnerQuery}
+                  setQuery={setPartnerQuery}
+                  preview={partnerPreview}
+                  fontSize={buttonFontSize}
+                  onEnter={() => commanderDialogRef.current?.close()}
+                  onPick={() => pickCommander('partner')}
+                />
+              )}
             </div>
           </div>
         </dialog>

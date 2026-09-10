@@ -13,6 +13,8 @@ export type Player = {
   name: string;
   deckName: string;
   commanderName: string;
+  /** Second commander, shown/tracked only when settings.usePartner is on. */
+  partnerName: string;
 };
 
 export type PlayerSettings = {
