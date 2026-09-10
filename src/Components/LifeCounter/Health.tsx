@@ -113,6 +113,16 @@ const Health = ({
     ? 'opacity-95 [text-shadow:0_1px_4px_rgba(0,0,0,0.9)]'
     : 'opacity-50';
 
+  // Name + deck as one run of text - bold name, plain deck - so it sits on one
+  // line and only wraps to a second when there isn't room.
+  const nameAndDeck = (
+    <>
+      {player.name && <span className="font-bold">{player.name}</span>}
+      {player.name && player.deckName ? ' ' : null}
+      {player.deckName && <span className="font-normal">{player.deckName}</span>}
+    </>
+  );
+
   return (
     <LifeContainer $rotation={player.settings.rotation}>
       {settings.useMonarch && <MonarchCrown player={player} />}
@@ -134,37 +144,19 @@ const Health = ({
           <div className="fixed flex justify-center -rotate-90 left-[5.4vmax]">
             <div
               data-contrast={player.iconTheme}
-              className={`absolute flex flex-col items-center gap-[0.2vmin] text-center text-nowrap
+              className={`absolute whitespace-nowrap text-center text-[3.4vmin] leading-none
               data-[contrast=dark]:text-icons-dark data-[contrast=light]:text-icons-light ${nameLabelClass}`}
             >
-              {player.name && (
-                <span className="text-[4vmin] font-bold leading-none">
-                  {player.name}
-                </span>
-              )}
-              {player.deckName && (
-                <span className="text-[2.8vmin] font-medium leading-none">
-                  {player.deckName}
-                </span>
-              )}
+              {nameAndDeck}
             </div>
           </div>
         ) : (
           <div
             data-contrast={player.iconTheme}
-            className={`absolute -top-[1.1vmin] flex flex-col items-center gap-[0.2vmin] text-center
+            className={`absolute -top-[1vmin] left-1/2 w-[60%] -translate-x-1/2 text-balance text-center text-[3.4vmin] leading-tight
             data-[contrast=dark]:text-icons-dark data-[contrast=light]:text-icons-light ${nameLabelClass}`}
           >
-            {player.name && (
-              <span className="text-[4vmin] font-bold leading-none">
-                {player.name}
-              </span>
-            )}
-            {player.deckName && (
-              <span className="text-[2.8vmin] font-medium leading-none">
-                {player.deckName}
-              </span>
-            )}
+            {nameAndDeck}
           </div>
         )}
       </div>
