@@ -952,7 +952,7 @@ const PlayerMenu = ({
                 className="text-text-secondary"
                 style={{ fontSize: buttonFontSize }}
               >
-                Shows the card art on this player&apos;s side. Not shared, and
+                Shows the card art on this player&apos;s side. Cosmetic only -
                 cleared when you start a new game.
               </span>
               <input
