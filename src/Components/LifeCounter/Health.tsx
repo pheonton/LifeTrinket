@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { twc } from 'react-twc';
 import { useGlobalSettings } from '../../Hooks/useGlobalSettings';
 import { Player, Rotation } from '../../Types/Player';
+import { Orientation } from '../../Types/Settings';
 import { RotationDivProps } from '../Buttons/CommanderDamage';
 import LifeCounterButton from '../Buttons/LifeCounterButton';
 import { MonarchCrown } from '../Misc/MonarchCrown';
@@ -57,7 +58,7 @@ const Health = ({
   const [fontSize, setFontSize] = useState(16);
   const textContainerRef = useRef<HTMLDivElement | null>(null);
 
-  const { settings } = useGlobalSettings();
+  const { settings, initialGameSettings } = useGlobalSettings();
 
   useEffect(() => {
     if (!textContainerRef.current) {
@@ -123,8 +124,22 @@ const Health = ({
     </>
   );
 
+  // In commander games the top of the card holds the commander-damage bar, so
+  // nudge the life number / buttons / name down out of dead-centre. Only for the
+  // upright (non-side) seats in a landscape layout - portrait seats are narrow
+  // columns/bands where a vertical nudge would push the number off the edge.
+  const commanderShift =
+    player.settings.useCommanderDamage &&
+    !isSide &&
+    initialGameSettings.orientation !== Orientation.Portrait
+      ? 'translate-y-[5vmin]'
+      : '';
+
   return (
-    <LifeContainer $rotation={player.settings.rotation}>
+    <LifeContainer
+      $rotation={player.settings.rotation}
+      className={commanderShift}
+    >
       {settings.useMonarch && <MonarchCrown player={player} />}
 
       <LifeCounterButton
