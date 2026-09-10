@@ -1050,13 +1050,6 @@ const PlayerMenu = ({
                   <Check size={buttonFontSize} />
                 </button>
               </div>
-              <span
-                className="text-text-secondary"
-                style={{ fontSize: buttonFontSize }}
-              >
-                Shows the card art on this player&apos;s side. Cosmetic only -
-                cleared when you start a new game.
-              </span>
               <CommanderField
                 which="commander"
                 showLabel={player.settings.usePartner}
