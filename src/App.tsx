@@ -79,8 +79,7 @@ const App = () => {
     >
       <PlayersProvider
         sharedState={sharedState}
-        // Only a link for a game that is not yet in progress builds the table.
-        trackLink={trackEntry?.isNew ? trackEntry.link : null}
+        newTrackLink={trackEntry?.isNew ? trackEntry.link : null}
       >
         <LifeTrinket />
       </PlayersProvider>

@@ -31,25 +31,40 @@ const readSavedGameSettings = (): InitialGameSettings => {
  * Seat order is fixed by the link. Seat 0 is player1 of the pairing, and
  * LifeTrinket never reorders the seats. The link decides only the seat count
  * and the starting life; the orientation and the format stay the player's own.
+ *
+ * The derived settings are persisted, not just used. `resetCurrentGame` reads
+ * `initialGameSettings` straight from localStorage, and only the start menu
+ * ever writes that key, so without this a tracked match would reset to the
+ * player's own life total -- or, on a device that has only ever opened a
+ * link, find no key at all and refuse to reset.
  */
-const playersFromTrackLink = (link: TrackLink): Player[] =>
-  createInitialPlayers({
+const startGameFromTrackLink = (link: TrackLink): Player[] => {
+  const settings: InitialGameSettings = {
     ...readSavedGameSettings(),
     numberOfPlayers: link.seats.length,
     startingLifeTotal: link.life ?? DEFAULT_TRACKED_LIFE,
-  }).map((player, seat) => ({
+  };
+  localStorage.setItem('initialGameSettings', JSON.stringify(settings));
+
+  return createInitialPlayers(settings).map((player, seat) => ({
     ...player,
     name: link.seats[seat],
   }));
+};
 
 export const PlayersProvider = ({
   children,
   sharedState,
-  trackLink,
+  newTrackLink,
 }: {
   children: ReactNode;
   sharedState?: SharedGameState | null;
-  trackLink?: TrackLink | null;
+  /**
+   * A link for a game that is not already in progress, and only then. A link
+   * restored on a reload names the game this device is already playing, so it
+   * must leave the saved players alone rather than build the table again.
+   */
+  newTrackLink?: TrackLink | null;
 }) => {
   // Prioritize shared state over localStorage
   const savedPlayers = sharedState?.players || localStorage.getItem('players');
@@ -77,8 +92,8 @@ export const PlayersProvider = ({
     if (sharedState?.players) {
       return sharedState.players;
     }
-    if (trackLink) {
-      return playersFromTrackLink(trackLink);
+    if (newTrackLink) {
+      return startGameFromTrackLink(newTrackLink);
     }
     if (typeof savedPlayers === 'string') {
       return JSON.parse(savedPlayers);

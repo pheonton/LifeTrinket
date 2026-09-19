@@ -343,9 +343,6 @@ export function useGameTracker({
       // propagates into React's unmount, which is the one thing tracking may
       // never do to the counter, and a shared try would let the first
       // failure strand the listeners after it.
-      //
-      // Disarming comes first: this tab is done with the node, so it must
-      // not stamp it offline when the socket eventually closes.
       const quietly = (step: () => void) => {
         try {
           step();
@@ -354,6 +351,35 @@ export function useGameTracker({
         }
       };
 
+      // Spec 8.8: leaving a tracked game must not leave it reading live for
+      // the whole six hours of its expiry. React never runs a cleanup on a
+      // tab close, so reaching here means the game id changed or this view
+      // unmounted -- the user left this game, either way. A tab close stays
+      // covered by the onDisconnect that is still armed at that moment.
+      //
+      // Only a writer that still owns a node may write it. A stopped one has
+      // been taken over or has been failing, and a null w deletes the child,
+      // which is how an ending with no winner clears a stale one.
+      //
+      // It goes before the disarming: if the socket dies between the two,
+      // an armed registration still stamps the node offline, where a
+      // disarmed one would leave it reading live.
+      quietly(() => {
+        const writer = writerRef.current;
+        if (!writer || stoppedRef.current) {
+          return;
+        }
+        void writer
+          .update({
+            st: 'ended',
+            w: winnerRef.current,
+            exp: writer.serverNow() + EXP_ENDED_MS,
+          })
+          .catch(() => undefined);
+      });
+
+      // This tab is done with the node, so it must not stamp it offline when
+      // the socket eventually closes.
       quietly(() => writerRef.current?.cancelDisconnect());
       cleanups.forEach((off) => quietly(off));
       writerRef.current = null;
