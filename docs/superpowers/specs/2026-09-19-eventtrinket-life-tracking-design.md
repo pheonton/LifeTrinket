@@ -218,7 +218,8 @@ pairing data. No personal data reaches the server.
 
 | Item | Size |
 |---|---|
-| Full node | about 85 bytes |
+| Full node, 2 seats, life only | about 85 bytes |
+| Full node, worst case the rules allow | about 350 bytes |
 | One coalesced update | about 60 bytes |
 
 ---
@@ -505,7 +506,7 @@ ID exists, the button becomes a live life readout.
 
 | Guarantee | The rule that gives it |
 |---|---|
-| A node cannot exceed about 200 bytes | `$other: false` plus every numeric range |
+| A node is hard-bounded at about 350 bytes | `$other: false` plus every numeric range |
 | Nobody can list live games | `live` has no read rule, so it inherits `false` |
 | Nobody can delete a live game | The delete branch needs `exp < now` |
 | Nobody can plant an immortal node | `exp <= now + 12 hours` |
@@ -555,7 +556,7 @@ shared between two players and the organizer, so this is a table-level trust
 problem. The value ranges cap the damage to plausible numbers.
 
 **Someone who reads the bundle can create nodes with random IDs.** Each node is
-under 200 bytes and expires within 12 hours. Filling 1 GB needs about 5 million
+under 350 bytes and expires within 12 hours. Filling 1 GB needs about 3 million
 nodes. The attacker gains nothing, you pay nothing, and the feature stops
 working until the quota resets.
 
