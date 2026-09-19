@@ -30,7 +30,6 @@
 | `exp` rule ceiling | 12 hours (43200000 ms) |
 | `GRACE_MS` | 15 minutes (900000 ms) |
 | Grace evaluation interval | 30000 ms |
-| Sweep page size | 200 |
 | Tracking ID length | 20 characters |
 | `wr` maximum length | 16 characters |
 | Tracking ID alphabet | `ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789` |
@@ -111,9 +110,6 @@ pnpm add -D @firebase/rules-unit-testing
     ".write": false,
 
     "live": {
-      ".read": "query.orderByChild == 'exp' && query.endAt <= now && query.limitToFirst <= 200",
-      ".indexOn": ["exp"],
-
       "$gameId": {
         ".read": true,
         ".write": "newData.exists() || data.child('exp').val() < now",
@@ -179,7 +175,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { get, query, orderByChild, endAt, limitToFirst, ref, remove, set, update } from 'firebase/database';
+import { get, ref, remove, set, update } from 'firebase/database';
 
 const ID = 'AAAAAAAAAABBBBBBBBBB'; // exactly 20 characters
 const HOUR = 60 * 60 * 1000;
@@ -269,11 +265,6 @@ describe('live node reads', () => {
     await assertFails(get(ref(db(), 'live')));
   });
 
-  it('accepts the sweep query', async () => {
-    await assertSucceeds(
-      get(query(ref(db(), 'live'), orderByChild('exp'), endAt(Date.now()), limitToFirst(200))),
-    );
-  });
 });
 ```
 
@@ -2267,7 +2258,7 @@ git commit -m "feat: add the archive record builder and the grace rule"
   - `rtdb: Database`
   - `type TrackedGameView = { node: LiveNode | null; error: boolean }`
   - `useTrackedGames(pairings: Array<{ pairing: Pairing; roundId: number; trackId: string }>): Record<string, TrackedGameView>`
-  - `sweepExpired(): Promise<number>` — returns the number of nodes deleted.
+  - `sweepExpired(trackIds: string[]): Promise<number>` — returns the number of nodes deleted
 
 - [ ] **Step 1: Add the database to the Firebase handle**
 
@@ -2304,16 +2295,7 @@ Create `src/hooks/useTrackedGames.ts`:
 
 ```ts
 import { useEffect, useRef, useState } from 'react';
-import {
-  endAt,
-  limitToFirst,
-  onValue,
-  orderByChild,
-  query,
-  ref,
-  remove,
-  get,
-} from 'firebase/database';
+import { onValue, ref, remove, get } from 'firebase/database';
 import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { rtdb } from '../lib/trackDb';
 import { db } from '../lib/firebase';
@@ -2326,7 +2308,6 @@ import {
 import type { Pairing } from '../types';
 
 const GRACE_TICK_MS = 30 * 1000;
-const SWEEP_PAGE = 200;
 
 export type TrackedGameView = { node: LiveNode | null; error: boolean };
 
@@ -2337,26 +2318,36 @@ export type TrackedPairing = {
 };
 
 /**
- * Deletes every expired node. The rules permit a delete only on an expired
- * node, so this cannot remove a live game. It replaces a scheduled function,
- * which would need the Blaze plan.
+ * Deletes the expired nodes among the tracking ids this device knows.
+ *
+ * `/live` has no list read, because a relational comparison on `query.endAt`
+ * is not supported in Realtime Database rules. That costs nothing here:
+ * EventTrinket holds every tracking id in its own game state, on every
+ * pairing of every match, so it never needed a query to find them.
+ *
+ * The rules permit a delete only on an expired node, so this cannot remove
+ * a live game even if the check below were wrong. It replaces a scheduled
+ * function, which would need the Blaze plan.
  */
-export async function sweepExpired(): Promise<number> {
-  try {
-    const stale = query(
-      ref(rtdb, 'live'),
-      orderByChild('exp'),
-      endAt(Date.now()),
-      limitToFirst(SWEEP_PAGE)
-    );
-    const snap = await get(stale);
-    const keys = Object.keys((snap.val() as Record<string, unknown> | null) ?? {});
-    await Promise.all(keys.map((key) => remove(ref(rtdb, `live/${key}`))));
-    return keys.length;
-  } catch (error) {
-    console.warn('Sweep skipped:', error);
-    return 0;
-  }
+export async function sweepExpired(trackIds: string[]): Promise<number> {
+  let removed = 0;
+
+  await Promise.all(
+    trackIds.map(async (trackId) => {
+      try {
+        const snap = await get(ref(rtdb, `live/${trackId}`));
+        const node = snap.val() as LiveNode | null;
+        if (node && node.exp < Date.now()) {
+          await remove(ref(rtdb, `live/${trackId}`));
+          removed += 1;
+        }
+      } catch (error) {
+        console.warn(`Sweep skipped ${trackId}:`, error);
+      }
+    })
+  );
+
+  return removed;
 }
 
 export function useTrackedGames(
@@ -2434,7 +2425,7 @@ export function useTrackedGames(
   // The sweep runs on mount and whenever the tracked set changes, which
   // includes every round change.
   useEffect(() => {
-    void sweepExpired();
+    void sweepExpired(trackedRef.current.map((t) => t.trackId));
   }, [ids]);
 
   return views;

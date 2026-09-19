@@ -427,13 +427,15 @@ month, 1 GiB is never a constraint.
 Run it on app load and on each round change.
 
 ```ts
-const stale = query(
-  ref(rtdb, 'live'),
-  orderByChild('exp'),
-  endAt(serverNow()),
-  limitToFirst(200),
-);
-// delete every key returned
+// EventTrinket holds every trackId in its own game state, on every pairing
+// of every match. It never needs a query to find them.
+for (const trackId of knownTrackIds) {
+  const snap = await get(ref(rtdb, `live/${trackId}`));
+  const node = snap.val();
+  if (node && node.exp < serverNow()) {
+    await remove(ref(rtdb, `live/${trackId}`));
+  }
+}
 ```
 
 An ended game sets `exp` to 30 minutes, so it reaps inside the same session. An
@@ -469,9 +471,6 @@ ID exists, the button becomes a live life readout.
     ".write": false,
 
     "live": {
-      ".read": "query.orderByChild == 'exp' && query.endAt <= now && query.limitToFirst <= 200",
-      ".indexOn": ["exp"],
-
       "$gameId": {
         ".read": true,
         ".write": "newData.exists() || data.child('exp').val() < now",
@@ -507,8 +506,7 @@ ID exists, the button becomes a live life readout.
 | Guarantee | The rule that gives it |
 |---|---|
 | A node cannot exceed about 200 bytes | `$other: false` plus every numeric range |
-| Nobody can list live games | `.read` at `live` accepts only the sweep query |
-| A sweep cannot pull unbounded data | `query.limitToFirst <= 200` |
+| Nobody can list live games | `live` has no read rule, so it inherits `false` |
 | Nobody can delete a live game | The delete branch needs `exp < now` |
 | Nobody can plant an immortal node | `exp <= now + 12 hours` |
 
@@ -686,7 +684,7 @@ Test these rule cases at minimum:
 5. A delete passes once `exp < now`.
 6. A write with `exp > now + 12 hours` fails.
 7. An unknown key fails.
-8. A list read without the sweep query fails.
+8. A list read of `live` fails.
 
 ---
 
@@ -719,7 +717,6 @@ These are accepted, not open questions.
 | `exp` rule ceiling | 12 hours | Database rules |
 | `GRACE_MS` | 15 minutes | EventTrinket |
 | Grace evaluation interval | 30 seconds | EventTrinket |
-| Sweep page size | 200 | EventTrinket and rules |
 | Tracking ID length | 20 characters | Both |
 | `wr` length | at most 16 characters | Database rules |
 | Database region | `europe-west1` | `draft-trinket` |
