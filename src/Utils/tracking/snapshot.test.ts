@@ -1,0 +1,85 @@
+import { describe, it, expect } from 'vitest';
+import { toSeatStates, diffSeats } from './snapshot';
+import { CounterType, Rotation, type Player } from '../../Types/Player';
+
+const makePlayer = (over: Partial<Player> = {}): Player => ({
+  lifeTotal: 20,
+  index: 0,
+  color: '#ffffff',
+  iconTheme: 'dark',
+  settings: {
+    rotation: Rotation.Normal,
+    useCommanderDamage: false,
+    usePartner: false,
+    usePoison: false,
+    useEnergy: false,
+    useExperience: false,
+  },
+  commanderDamage: [],
+  extraCounters: [],
+  isStartingPlayer: false,
+  isMonarch: false,
+  hasLost: false,
+  isSide: false,
+  name: 'Player',
+  ...over,
+});
+
+describe('toSeatStates', () => {
+  it('reports life only when no counter is enabled', () => {
+    expect(toSeatStates([makePlayer(), makePlayer({ lifeTotal: 17 })])).toEqual([
+      { l: 20 },
+      { l: 17 },
+    ]);
+  });
+
+  it('reports poison only when poison is enabled', () => {
+    const player = makePlayer({
+      settings: { ...makePlayer().settings, usePoison: true },
+      extraCounters: [{ type: CounterType.Poison, value: 4 }],
+    });
+    expect(toSeatStates([player])).toEqual([{ l: 20, poi: 4 }]);
+  });
+
+  it('reports poison as 0 when the counter is enabled but absent', () => {
+    const player = makePlayer({
+      settings: { ...makePlayer().settings, usePoison: true },
+    });
+    expect(toSeatStates([player])).toEqual([{ l: 20, poi: 0 }]);
+  });
+
+  it('reports the highest commander damage across every source', () => {
+    const player = makePlayer({
+      settings: { ...makePlayer().settings, useCommanderDamage: true },
+      commanderDamage: [
+        { source: 1, damageTotal: 7, partnerDamageTotal: 2 },
+        { source: 2, damageTotal: 3, partnerDamageTotal: 12 },
+      ],
+    });
+    expect(toSeatStates([player])).toEqual([{ l: 20, cmd: 12 }]);
+  });
+});
+
+describe('diffSeats', () => {
+  const two = [{ l: 20 }, { l: 20 }];
+
+  it('produces every path when there is no previous state', () => {
+    expect(diffSeats(null, two)).toEqual({ 'p/0/l': 20, 'p/1/l': 20 });
+  });
+
+  it('produces nothing when nothing changed', () => {
+    expect(diffSeats(two, [{ l: 20 }, { l: 20 }])).toEqual({});
+  });
+
+  it('produces only the path that changed', () => {
+    expect(diffSeats(two, [{ l: 20 }, { l: 17 }])).toEqual({ 'p/1/l': 17 });
+  });
+
+  it('produces a poison path when poison changed', () => {
+    expect(diffSeats([{ l: 20, poi: 1 }], [{ l: 20, poi: 2 }])).toEqual({ 'p/0/poi': 2 });
+  });
+
+  it('ignores a field that is absent from the next state', () => {
+    expect(diffSeats([{ l: 20, poi: 1 }], [{ l: 20 }])).toEqual({});
+  });
+});
