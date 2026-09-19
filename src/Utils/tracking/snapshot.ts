@@ -31,23 +31,25 @@ export function toSeatStates(players: Player[]): SeatState[] {
 /**
  * Returns the Realtime Database paths that changed, ready for a
  * partial-path update. An empty result means no write is needed.
+ * Emits null to delete a path when a field disappears from next.
  */
 export function diffSeats(
   prev: SeatState[] | null,
   next: SeatState[]
-): Record<string, number> {
-  const changes: Record<string, number> = {};
+): Record<string, number | null> {
+  const changes: Record<string, number | null> = {};
 
   next.forEach((seat, index) => {
     const before = prev?.[index];
 
     TRACKED_KEYS.forEach((key) => {
       const value = seat[key];
-      if (value === undefined) {
-        return;
-      }
-      if (before?.[key] !== value) {
-        changes[`p/${index}/${key}`] = value;
+      if (value !== undefined) {
+        if (before?.[key] !== value) {
+          changes[`p/${index}/${key}`] = value;
+        }
+      } else if (before?.[key] !== undefined) {
+        changes[`p/${index}/${key}`] = null;
       }
     });
   });

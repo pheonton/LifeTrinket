@@ -79,7 +79,11 @@ describe('diffSeats', () => {
     expect(diffSeats([{ l: 20, poi: 1 }], [{ l: 20, poi: 2 }])).toEqual({ 'p/0/poi': 2 });
   });
 
-  it('ignores a field that is absent from the next state', () => {
-    expect(diffSeats([{ l: 20, poi: 1 }], [{ l: 20 }])).toEqual({});
+  it('clears a field that disappeared from the next state', () => {
+    expect(diffSeats([{ l: 20, poi: 1 }], [{ l: 20 }])).toEqual({ 'p/0/poi': null });
+  });
+
+  it('produces nothing for a field absent from both prev and next', () => {
+    expect(diffSeats([{ l: 20 }], [{ l: 20 }])).toEqual({});
   });
 });
