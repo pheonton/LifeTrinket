@@ -24,6 +24,14 @@ type Writer = {
   update: (values: Record<string, unknown>) => Promise<void>;
   set: (value: unknown) => Promise<void>;
   serverNow: () => number;
+  /** Stamp the node offline if this socket dies. A fired one is consumed. */
+  armDisconnect: () => void;
+  /**
+   * Disarm it. An armed registration belongs to a game this writer still
+   * owns and still believes is live. Once that stops being true it would
+   * stamp `offline` over someone else's node, or over a finished game.
+   */
+  cancelDisconnect: () => void;
 };
 
 /**
@@ -61,6 +69,9 @@ export function useGameTracker({
 } {
   const [status, setStatus] = useState<TrackerStatus>('idle');
   const [lastSentAt, setLastSentAt] = useState<number | null>(null);
+  // Bumped by forceUpdate to re-run the connection effect after a failed
+  // connect. It is the only way back from a writer that never existed.
+  const [attempt, setAttempt] = useState(0);
 
   const writerRef = useRef<Writer | null>(null);
   const throttleRef = useRef<Throttle | null>(null);
@@ -71,7 +82,6 @@ export function useGameTracker({
   // winner, or they will publish a finished game as live.
   const winnerRef = useRef<number | null>(winner);
   const connectedRef = useRef(false);
-  const dirtyRef = useRef(false);
   const stoppedRef = useRef(false);
   // Spec 8.9: t0 and wr must survive a reload, because every reconnect sends
   // a full snapshot and that snapshot must carry the original start time.
@@ -93,6 +103,14 @@ export function useGameTracker({
   playersRef.current = players;
   winnerRef.current = winner;
 
+  // The end of the ladder. Every failure lands here: stop writing, say so
+  // once, and stay silent. Never a retry loop against a rejecting rule.
+  const stopTracking = useCallback((error: unknown) => {
+    console.warn('Live tracking stopped:', error);
+    stoppedRef.current = true;
+    setStatus('error');
+  }, []);
+
   // The full snapshot repairs a missing or drifted node. It is the first
   // step of the recovery ladder, and it runs on every reconnect.
   const sendFull = useCallback(
@@ -101,35 +119,45 @@ export function useGameTracker({
       if (!writer || stoppedRef.current) {
         return;
       }
-      const seats = toSeatStates(playersRef.current);
-      const nowMs = writer.serverNow();
-      const node: Record<string, unknown> = {
-        v: 1,
-        st: state,
-        t0: t0Ref.current || nowMs,
-        exp: nowMs + (state === 'ended' ? EXP_ENDED_MS : EXP_LIVE_MS),
-        up: nowMs,
-        wr: sessionRef.current,
-        p: seats,
-      };
-      if (w !== null) {
-        node.w = w;
-      }
-      t0Ref.current = node.t0 as number;
-      localStorage.setItem(T0_KEY, `${t0GameIdRef.current}|${t0Ref.current}`);
-
+      // The try opens here, not at the write. Building the snapshot touches
+      // localStorage and the player array, and every caller voids this
+      // promise, so a throw above the write would escape as an unhandled
+      // rejection behind a status still claiming to be live.
       try {
+        const seats = toSeatStates(playersRef.current);
+        const nowMs = writer.serverNow();
+        const node: Record<string, unknown> = {
+          v: 1,
+          st: state,
+          t0: t0Ref.current || nowMs,
+          exp: nowMs + (state === 'ended' ? EXP_ENDED_MS : EXP_LIVE_MS),
+          up: nowMs,
+          wr: sessionRef.current,
+          p: seats,
+        };
+        if (w !== null) {
+          node.w = w;
+        }
+        t0Ref.current = node.t0 as number;
+        localStorage.setItem(T0_KEY, `${t0GameIdRef.current}|${t0Ref.current}`);
+
         await writer.set(node);
         sentRef.current = seats;
         setLastSentAt(Date.now());
         setStatus('live');
+
+        // An ended game must not be flipped back to offline by a tab close,
+        // and an undone ending must get its registration back.
+        if (state === 'ended') {
+          writer.cancelDisconnect();
+        } else {
+          writer.armDisconnect();
+        }
       } catch (error) {
-        console.warn('Live tracking stopped:', error);
-        stoppedRef.current = true;
-        setStatus('error');
+        stopTracking(error);
       }
     },
-    []
+    [stopTracking]
   );
 
   // Step one of the ladder on failure, then stop. A retry loop against a
@@ -137,35 +165,54 @@ export function useGameTracker({
   const sendDiff = useCallback(async () => {
     const writer = writerRef.current;
     if (!writer || stoppedRef.current || !connectedRef.current) {
-      dirtyRef.current = true;
       return;
     }
-    const seats = toSeatStates(playersRef.current);
-    // A null here deletes that path, which is how a counter that has been
-    // switched off stops showing a stale value on the board.
-    const changes = diffSeats(sentRef.current, seats);
-    if (Object.keys(changes).length === 0) {
-      return;
-    }
-    const nowMs = writer.serverNow();
+    // As in sendFull: the preparation is inside the try, because a throw
+    // from it would otherwise escape this voided promise.
     try {
-      await writer.update({ ...changes, up: nowMs, exp: nowMs + EXP_LIVE_MS });
-      sentRef.current = seats;
-      setLastSentAt(Date.now());
-    } catch {
-      // Step one of the ladder. It must carry the current winner: a game
-      // that has already ended would otherwise be republished as live with
-      // no winner, and nothing later would repair it.
-      await sendFull(
-        winnerRef.current === null ? 'live' : 'ended',
-        winnerRef.current
-      );
+      const seats = toSeatStates(playersRef.current);
+      // A null here deletes that path, which is how a counter that has been
+      // switched off stops showing a stale value on the board.
+      const changes = diffSeats(sentRef.current, seats);
+      if (Object.keys(changes).length === 0) {
+        return;
+      }
+      const nowMs = writer.serverNow();
+      // A finished game keeps the short expiry. Players still change after a
+      // win, because hasLost is a toggle, and a live-length expiry here would
+      // hold a finished game in the live tree twelve times too long.
+      const ttl = winnerRef.current === null ? EXP_LIVE_MS : EXP_ENDED_MS;
+
+      try {
+        await writer.update({ ...changes, up: nowMs, exp: nowMs + ttl });
+        sentRef.current = seats;
+        setLastSentAt(Date.now());
+      } catch {
+        // Step one of the ladder. It must carry the current winner: a game
+        // that has already ended would otherwise be republished as live with
+        // no winner, and nothing later would repair it. sendFull never
+        // rejects, so this inner catch cannot throw on into the outer one.
+        await sendFull(
+          winnerRef.current === null ? 'live' : 'ended',
+          winnerRef.current
+        );
+      }
+    } catch (error) {
+      stopTracking(error);
     }
-  }, [sendFull]);
+  }, [sendFull, stopTracking]);
 
   const forceUpdate = useCallback(() => {
     stoppedRef.current = false;
-    void sendFull(winner === null ? 'live' : 'ended', winner);
+    if (writerRef.current) {
+      void sendFull(winner === null ? 'live' : 'ended', winner);
+      return;
+    }
+    // No writer means the connection never came up: a failed import, a
+    // missing configuration, a rejected handle. Clearing the stopped flag
+    // alone would leave the button doing nothing in exactly the case a user
+    // reaches for it, so ask the connection effect to run again.
+    setAttempt((count) => count + 1);
   }, [sendFull, winner]);
 
   // Connect once per game id.
@@ -200,10 +247,25 @@ export function useGameTracker({
         const node = ref(db, `live/${gameId}`);
         const serverNow = () => Date.now() + offset;
 
+        // Both registrations are best effort and must stay silent: a
+        // rejection here may not reach the page.
+        const armDisconnect = () => {
+          onDisconnect(node)
+            .update({ st: 'offline', off: serverNow() })
+            .catch(() => undefined);
+        };
+        const cancelDisconnect = () => {
+          onDisconnect(node)
+            .cancel()
+            .catch(() => undefined);
+        };
+
         writerRef.current = {
           update: (values) => update(node, values),
           set: (value) => set(node, value),
           serverNow,
+          armDisconnect,
+          cancelDisconnect,
         };
 
         throttleRef.current = createThrottle(
@@ -224,21 +286,17 @@ export function useGameTracker({
 
             if (!connected) {
               setStatus('offline');
-              dirtyRef.current = true;
               return;
             }
 
             // A fired onDisconnect is consumed, so it must be set again.
-            // A rejected registration must stay silent, never an unhandled
-            // rejection: tracking may not degrade the counter.
-            onDisconnect(node)
-              .update({
-                st: 'offline',
-                off: serverNow(),
-              })
-              .catch(() => undefined);
+            // Not for a finished game: sendFull would only cancel it a round
+            // trip later, and a socket dying inside that window would stamp
+            // a finished game offline.
+            if (winnerRef.current === null) {
+              armDisconnect();
+            }
 
-            dirtyRef.current = false;
             void sendFull(
               winnerRef.current === null ? 'live' : 'ended',
               winnerRef.current
@@ -254,6 +312,10 @@ export function useGameTracker({
             if (parsed.success && parsed.data.wr !== sessionRef.current) {
               stoppedRef.current = true;
               setStatus('taken');
+              // The node is theirs now. A registration left armed here would
+              // stamp their live game offline when this tab closes, and their
+              // diff writes never touch st, so it would stay that way.
+              cancelDisconnect();
             }
           })
         );
@@ -267,15 +329,19 @@ export function useGameTracker({
     return () => {
       cancelled = true;
       throttleRef.current?.cancel();
+      // Disarm before dropping the writer. This tab is done with the node,
+      // so it must not stamp it offline when the socket eventually closes.
+      writerRef.current?.cancelDisconnect();
       cleanups.forEach((off) => off());
       writerRef.current = null;
       throttleRef.current = null;
     };
     // sendFull and sendDiff are stable enough here. The hook reconnects only
-    // when the game id changes. The winner is read through winnerRef, so it
-    // is never stale despite not being a dependency.
+    // when the game id changes, or when forceUpdate asks for another attempt.
+    // The winner is read through winnerRef, so it is never stale despite not
+    // being a dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameId]);
+  }, [gameId, attempt]);
 
   // Ask for a write whenever the players change.
   useEffect(() => {
