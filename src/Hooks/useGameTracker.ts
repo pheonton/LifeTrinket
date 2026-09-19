@@ -66,6 +66,10 @@ export function useGameTracker({
   const throttleRef = useRef<Throttle | null>(null);
   const sentRef = useRef<SeatState[] | null>(null);
   const playersRef = useRef<Player[]>(players);
+  // The winner is read by callbacks that outlive the render that made them:
+  // the reconnect handler and the diff fallback. Both must see the current
+  // winner, or they will publish a finished game as live.
+  const winnerRef = useRef<number | null>(winner);
   const connectedRef = useRef(false);
   const dirtyRef = useRef(false);
   const stoppedRef = useRef(false);
@@ -87,6 +91,7 @@ export function useGameTracker({
   }
 
   playersRef.current = players;
+  winnerRef.current = winner;
 
   // The full snapshot repairs a missing or drifted node. It is the first
   // step of the recovery ladder, and it runs on every reconnect.
@@ -148,7 +153,13 @@ export function useGameTracker({
       sentRef.current = seats;
       setLastSentAt(Date.now());
     } catch {
-      await sendFull('live', null);
+      // Step one of the ladder. It must carry the current winner: a game
+      // that has already ended would otherwise be republished as live with
+      // no winner, and nothing later would repair it.
+      await sendFull(
+        winnerRef.current === null ? 'live' : 'ended',
+        winnerRef.current
+      );
     }
   }, [sendFull]);
 
@@ -228,7 +239,10 @@ export function useGameTracker({
               .catch(() => undefined);
 
             dirtyRef.current = false;
-            void sendFull(winner === null ? 'live' : 'ended', winner);
+            void sendFull(
+              winnerRef.current === null ? 'live' : 'ended',
+              winnerRef.current
+            );
           })
         );
 
@@ -257,8 +271,9 @@ export function useGameTracker({
       writerRef.current = null;
       throttleRef.current = null;
     };
-    // sendFull, sendDiff and winner are stable enough here. The hook
-    // reconnects only when the game id changes.
+    // sendFull and sendDiff are stable enough here. The hook reconnects only
+    // when the game id changes. The winner is read through winnerRef, so it
+    // is never stale despite not being a dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId]);
 
