@@ -289,11 +289,15 @@ export function useGameTracker({
               return;
             }
 
-            // A fired onDisconnect is consumed, so it must be set again.
-            // Not for a finished game: sendFull would only cancel it a round
-            // trip later, and a socket dying inside that window would stamp
-            // a finished game offline.
-            if (winnerRef.current === null) {
+            // A fired onDisconnect is consumed, so it must be set again --
+            // but only while this writer still owns a node it believes is
+            // live. A stopped writer that reconnects (backgrounding, a
+            // network switch) would otherwise re-arm on the node it no
+            // longer owns, and stamp the new writer's live game offline on
+            // tab close. Not for a finished game either: sendFull would
+            // cancel it a round trip later, and a socket dying inside that
+            // window would stamp a finished game offline.
+            if (!stoppedRef.current && winnerRef.current === null) {
               armDisconnect();
             }
 
@@ -306,8 +310,14 @@ export function useGameTracker({
 
         // The two-writer guard. Another device taking over stops this one.
         // A node that does not parse is not a takeover, so it changes nothing.
+        // stoppedRef makes this edge-triggered: this listener sees every one
+        // of the new writer's updates, and without it each would repeat the
+        // status set and fire another cancel round trip, indefinitely.
         cleanups.push(
           onValue(node, (snap) => {
+            if (stoppedRef.current) {
+              return;
+            }
             const parsed = liveNodeSchema.safeParse(snap.val());
             if (parsed.success && parsed.data.wr !== sessionRef.current) {
               stoppedRef.current = true;
@@ -329,10 +339,23 @@ export function useGameTracker({
     return () => {
       cancelled = true;
       throttleRef.current?.cancel();
-      // Disarm before dropping the writer. This tab is done with the node,
-      // so it must not stamp it offline when the socket eventually closes.
-      writerRef.current?.cancelDisconnect();
-      cleanups.forEach((off) => off());
+      // Every SDK call below is wrapped on its own. A throw in a cleanup
+      // propagates into React's unmount, which is the one thing tracking may
+      // never do to the counter, and a shared try would let the first
+      // failure strand the listeners after it.
+      //
+      // Disarming comes first: this tab is done with the node, so it must
+      // not stamp it offline when the socket eventually closes.
+      const quietly = (step: () => void) => {
+        try {
+          step();
+        } catch (error) {
+          console.warn('Live tracking cleanup failed:', error);
+        }
+      };
+
+      quietly(() => writerRef.current?.cancelDisconnect());
+      cleanups.forEach((off) => quietly(off));
       writerRef.current = null;
       throttleRef.current = null;
     };
