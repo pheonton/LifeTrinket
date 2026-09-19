@@ -36,12 +36,17 @@ export function getTrackLinkFromUrl(
   return decodeTrackLink(hash.slice(TRACK_HASH_PREFIX.length));
 }
 
-export function clearTrackLinkFromUrl(): void {
-  if (window.location.hash.startsWith(TRACK_HASH_PREFIX)) {
-    history.replaceState(
-      null,
-      '',
-      window.location.pathname + window.location.search
-    );
+export function clearTrackLinkFromUrl(
+  loc: Pick<Location, 'hash' | 'pathname' | 'search'> = typeof window ===
+  'undefined'
+    ? { hash: '', pathname: '', search: '' }
+    : window.location,
+  hist: Pick<History, 'replaceState'> = typeof window === 'undefined'
+    ? { replaceState: () => {} }
+    : window.history
+): void {
+  if (!loc.hash.startsWith(TRACK_HASH_PREFIX)) {
+    return;
   }
+  hist.replaceState(null, '', loc.pathname + loc.search);
 }
