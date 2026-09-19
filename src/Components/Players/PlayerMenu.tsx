@@ -127,6 +127,7 @@ const PlayerMenu = ({
     initialGameSettings,
     setPreStartCompleted,
     gameScore,
+    clearTrackedGame,
   } = useGlobalSettings();
 
   const analytics = useAnalytics();
@@ -158,6 +159,9 @@ const PlayerMenu = ({
   const handleResetGame = () => {
     resetCurrentGame();
     setShowPlayerMenu(false);
+
+    // The next game is not the game the link named, so stop publishing.
+    clearTrackedGame();
 
     setPlaying(false);
 

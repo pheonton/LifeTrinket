@@ -8,6 +8,8 @@ import { GameTimer } from '../GameTimer/GameTimer';
 import { Players } from '../Players/Players';
 import { PreStart } from '../PreStartGame/PreStart';
 import { GameOver } from '../GameOver/GameOver';
+import { useGameTracker } from '../../Hooks/useGameTracker';
+import { TrackingChip } from '../Tracking/TrackingChip';
 
 const MainWrapper = twc.div`relative w-[100dvmax] h-[100dvmin] overflow-hidden, setPlayers`;
 
@@ -17,9 +19,19 @@ export type GridLayout = `grid-areas-${GridTemplateAreasKeys}`;
 
 export const Play = () => {
   const { players, setPlayers, resetCurrentGame, setStartingPlayerIndex } = usePlayers();
-  const { initialGameSettings, playing, settings, preStartCompleted, gameScore, setGameScore } =
-    useGlobalSettings();
+  const {
+    initialGameSettings,
+    playing,
+    settings,
+    preStartCompleted,
+    gameScore,
+    setGameScore,
+    trackedGameId,
+  } = useGlobalSettings();
   const [winner, setWinner] = useState<number | null>(null);
+
+  // Idle and inert unless a track link started this game.
+  const tracker = useGameTracker({ gameId: trackedGameId, players, winner });
 
   let gridLayout: GridLayout;
   switch (players.length) {
@@ -159,6 +171,12 @@ export const Play = () => {
       <Players gridLayout={gridLayout} />
 
       {settings.showTimer && <GameTimer />}
+
+      <TrackingChip
+        status={tracker.status}
+        lastSentAt={tracker.lastSentAt}
+        onForce={tracker.forceUpdate}
+      />
 
       {winner !== null && (
         <GameOver

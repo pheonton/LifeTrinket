@@ -20,13 +20,16 @@ import {
 import { LifeHistoryEvent } from '../Types/Player';
 import { gte as semverGreaterThanOrEqual } from 'semver';
 import type { SharedGameState } from '../Types/SharedState';
+import type { TrackLink } from '../Types/Tracking';
 
 export const GlobalSettingsProvider = ({
   children,
   sharedState,
+  trackLink,
 }: {
   children: ReactNode;
   sharedState?: SharedGameState | null;
+  trackLink?: TrackLink | null;
 }) => {
   const analytics = useAnalytics();
   const metrics = useMetrics();
@@ -47,8 +50,8 @@ export const GlobalSettingsProvider = ({
 
   const savedPlaying = localStorage.getItem('playing');
   const [playing, setPlaying] = useState<boolean>(() => {
-    // If shared state exists, auto-start the game
-    if (sharedState) {
+    // Shared state and a track link both auto-start the game
+    if (sharedState || trackLink) {
       return true;
     }
     return savedPlaying ? savedPlaying === 'true' : false;
@@ -65,8 +68,8 @@ export const GlobalSettingsProvider = ({
 
   const savedShowPlay = localStorage.getItem('showPlay');
   const [showPlay, setShowPlay] = useState<boolean>(() => {
-    // If shared state exists, show the play view
-    if (sharedState) {
+    // Shared state and a track link both open the play view
+    if (sharedState || trackLink) {
       return true;
     }
     return savedShowPlay ? savedShowPlay === 'true' : false;
@@ -169,6 +172,16 @@ export const GlobalSettingsProvider = ({
     localStorage.removeItem('lifeHistory');
   }, []);
 
+  // Held in state, not read from the link on every render, so that ending
+  // the tracked game stops the publishing without a reload.
+  const [trackedGameId, setTrackedGameId] = useState<string | null>(
+    trackLink?.id ?? null
+  );
+  const clearTrackedGame = useCallback(() => {
+    localStorage.removeItem('trackedGame');
+    setTrackedGameId(null);
+  }, []);
+
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
@@ -230,6 +243,7 @@ export const GlobalSettingsProvider = ({
       localStorage.removeItem('gameScore');
       localStorage.removeItem('timerStartedAt');
       localStorage.removeItem('timerAccumulatedMs');
+      clearTrackedGame();
 
       setPlaying(false);
       setShowPlay(false);
@@ -376,6 +390,8 @@ export const GlobalSettingsProvider = ({
       lifeHistory,
       addLifeHistoryEvent,
       clearLifeHistory,
+      trackedGameId,
+      clearTrackedGame,
     };
   }, [
     isFullscreen,
@@ -400,6 +416,8 @@ export const GlobalSettingsProvider = ({
     lifeHistory,
     addLifeHistoryEvent,
     clearLifeHistory,
+    trackedGameId,
+    clearTrackedGame,
   ]);
 
   return (

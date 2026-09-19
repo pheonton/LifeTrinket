@@ -1,15 +1,55 @@
 import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { Player } from '../Types/Player';
 import { PlayersContextType, PlayersContext } from '../Contexts/PlayersContext';
-import { InitialGameSettings } from '../Types/Settings';
+import {
+  InitialGameSettings,
+  defaultInitialGameSettings,
+  initialGameSettingsSchema,
+} from '../Types/Settings';
 import type { SharedGameState } from '../Types/SharedState';
+import { DEFAULT_TRACKED_LIFE, type TrackLink } from '../Types/Tracking';
+import { createInitialPlayers } from '../Data/getInitialPlayers';
+
+/**
+ * The settings the player last used, which a track link then overrides. A
+ * corrupt value must not stop the counter, so it falls back to the defaults.
+ */
+const readSavedGameSettings = (): InitialGameSettings => {
+  const saved = localStorage.getItem('initialGameSettings');
+  if (!saved) {
+    return defaultInitialGameSettings;
+  }
+  try {
+    const parsed = initialGameSettingsSchema.safeParse(JSON.parse(saved));
+    return parsed.success ? parsed.data : defaultInitialGameSettings;
+  } catch {
+    return defaultInitialGameSettings;
+  }
+};
+
+/**
+ * Seat order is fixed by the link. Seat 0 is player1 of the pairing, and
+ * LifeTrinket never reorders the seats. The link decides only the seat count
+ * and the starting life; the orientation and the format stay the player's own.
+ */
+const playersFromTrackLink = (link: TrackLink): Player[] =>
+  createInitialPlayers({
+    ...readSavedGameSettings(),
+    numberOfPlayers: link.seats.length,
+    startingLifeTotal: link.life ?? DEFAULT_TRACKED_LIFE,
+  }).map((player, seat) => ({
+    ...player,
+    name: link.seats[seat],
+  }));
 
 export const PlayersProvider = ({
   children,
   sharedState,
+  trackLink,
 }: {
   children: ReactNode;
   sharedState?: SharedGameState | null;
+  trackLink?: TrackLink | null;
 }) => {
   // Prioritize shared state over localStorage
   const savedPlayers = sharedState?.players || localStorage.getItem('players');
@@ -36,6 +76,9 @@ export const PlayersProvider = ({
   const [players, setPlayers] = useState<Player[]>(() => {
     if (sharedState?.players) {
       return sharedState.players;
+    }
+    if (trackLink) {
+      return playersFromTrackLink(trackLink);
     }
     if (typeof savedPlayers === 'string') {
       return JSON.parse(savedPlayers);

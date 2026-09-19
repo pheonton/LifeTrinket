@@ -2,6 +2,9 @@ import { z } from 'zod';
 
 export const TRACK_ID_LENGTH = 20;
 
+/** The starting life a track link means when it names none. */
+export const DEFAULT_TRACKED_LIFE = 20;
+
 export const trackLinkSchema = z.object({
   v: z.literal(1),
   id: z.string().length(TRACK_ID_LENGTH),

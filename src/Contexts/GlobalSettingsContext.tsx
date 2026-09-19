@@ -56,6 +56,10 @@ export type GlobalSettingsContextType = {
   lifeHistory: LifeHistoryEvent[];
   addLifeHistoryEvent: (event: LifeHistoryEvent) => void;
   clearLifeHistory: () => void;
+  /** The id of the game this device publishes life totals to, or null. */
+  trackedGameId: string | null;
+  /** Stops publishing. A game that has been reset is no longer that game. */
+  clearTrackedGame: () => void;
 };
 
 export const GlobalSettingsContext =
