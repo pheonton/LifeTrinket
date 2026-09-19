@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -89,5 +90,9 @@ export default defineConfig({
     VITE_GRAFANA_FARO_APP_NAME: JSON.stringify(
       process.env.VITE_GRAFANA_FARO_APP_NAME
     ),
+  },
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
   },
 });
