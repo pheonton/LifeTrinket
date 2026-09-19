@@ -419,19 +419,37 @@ In `firestore.rules`, add this block inside `match /databases/{database}/documen
 
 ```
     match /trackedGames/{trackId} {
-      allow read: if true;
+      // get, not read. In Firestore `read` covers get AND list, so
+      // `allow read: if true` would let anyone enumerate every archived
+      // game and every player name in it, with no ID at all.
+      allow get: if true;
+      allow list: if false;
+
       allow create, update: if trackId.size() == 20
-        && request.resource.data.v == 1
+        && request.resource.data.keys().hasAll([
+             'v','status','seats','life','poison','commanderDamage',
+             'winnerSeat','roundId','startedAt','endedAt','archivedAt'
+           ])
         && request.resource.data.keys().hasOnly([
              'v','status','seats','life','poison','commanderDamage',
              'winnerSeat','roundId','startedAt','endedAt','archivedAt'
            ])
+        && request.resource.data.v == 1
         && request.resource.data.status in ['final', 'abandoned']
         && request.resource.data.seats is list
         && request.resource.data.seats.size() >= 2
         && request.resource.data.seats.size() <= 6
         && request.resource.data.life is list
         && request.resource.data.life.size() == request.resource.data.seats.size()
+        && (request.resource.data.poison == null
+            || request.resource.data.poison is list)
+        && (request.resource.data.commanderDamage == null
+            || request.resource.data.commanderDamage is list)
+        && (request.resource.data.winnerSeat == null
+            || request.resource.data.winnerSeat is int)
+        && request.resource.data.roundId is int
+        && request.resource.data.startedAt is int
+        && request.resource.data.endedAt is int
         && request.resource.data.archivedAt == request.time;
       allow delete: if false;
     }
