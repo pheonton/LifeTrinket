@@ -856,6 +856,26 @@ and it is accepted deliberately.
    a wrong number no button press could produce, so it earns no warning
    either.
 
+6. **A decided match takes no more games.** A pairing that has already
+   settled with a player on two wins is over. Best of three ends at two
+   wins, so a later differing score is dropped: nothing written, nothing
+   settled, no warning, exactly as guard 5 drops a decrease. Settling it
+   would pull guard 5's high-water mark down to the rejected value.
+
+   It sits after guard 2, so an out-of-range score still earns its warning,
+   and beside guard 5, because both read the same mark: `syncedScore` when
+   there is one, the counters before a first sync.
+
+   Note what this does **not** say. A 2-1 is a legal score, reached as 1-0,
+   1-1, 2-1, and a 2-1 arriving at a pairing that has settled nothing is
+   written. What is refused is the transition out of a decided match -- a
+   2-0 becoming a 2-1 because the players kept shuffling after the win.
+
+   The same rule governs the board's own buttons, through
+   `isPairingDecided` in `trackScore.ts`. All three `+` controls read it,
+   including the draw. Three buttons each testing only their own player's
+   wins is what let a 2-0 become a 2-1 by hand.
+
 ### Where the settled score lives
 
 Guard 1 needs somewhere to record the score the board has already acted on.
