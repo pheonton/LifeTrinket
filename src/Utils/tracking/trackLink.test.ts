@@ -6,7 +6,7 @@ import {
   clearTrackLinkFromUrl,
   readTrackEntry,
 } from './trackLink';
-import type { TrackLink } from '../../Types/Tracking';
+import { roundNodeSchema, type TrackLink } from '../../Types/Tracking';
 
 const link: TrackLink = {
   v: 1,
@@ -72,6 +72,28 @@ describe('encodeTrackLink and decodeTrackLink', () => {
   it('returns null for a non-positive life', () => {
     const bad = encodeTrackLink({ ...link, life: 0 } as TrackLink);
     expect(decodeTrackLink(bad)).toBeNull();
+  });
+
+  it('round-trips a link carrying a round session id', () => {
+    const withRound: TrackLink = { ...link, r: 'CCCCCCCCCCDDDDDDDDDD' };
+    expect(decodeTrackLink(encodeTrackLink(withRound))).toEqual(withRound);
+  });
+
+  it('decodes a link with no round session id, leaving r undefined', () => {
+    const decoded = decodeTrackLink(encodeTrackLink(link));
+    expect(decoded?.r).toBeUndefined();
+  });
+
+  it('returns null for a round session id of the wrong length', () => {
+    const bad = encodeTrackLink({ ...link, r: 'short' } as TrackLink);
+    expect(decodeTrackLink(bad)).toBeNull();
+  });
+});
+
+describe('roundNodeSchema', () => {
+  it('rejects a node with no end', () => {
+    const bad = { v: 1, exp: 1758000000000 };
+    expect(roundNodeSchema.safeParse(bad).success).toBe(false);
   });
 });
 

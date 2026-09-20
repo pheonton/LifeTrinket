@@ -11,6 +11,12 @@ export const trackLinkSchema = z.object({
   seats: z.array(z.string()).min(2).max(6),
   life: z.number().int().positive().optional(),
   label: z.string().max(64).optional(),
+  /**
+   * The session id naming the round clock this link's game follows.
+   * Optional: every link minted before the round-end feature has none, and
+   * must keep decoding unchanged.
+   */
+  r: z.string().length(TRACK_ID_LENGTH).optional(),
 });
 
 export type TrackLink = z.infer<typeof trackLinkSchema>;
@@ -43,3 +49,12 @@ export const liveNodeSchema = z.object({
 
 export type LiveNode = z.infer<typeof liveNodeSchema>;
 export type TrackStatus = LiveNode['st'];
+
+/** `/rounds/$sessionId`, written by EventTrinket and only ever read here. */
+export const roundNodeSchema = z.object({
+  v: z.literal(1),
+  end: z.number(),
+  exp: z.number(),
+});
+
+export type RoundNode = z.infer<typeof roundNodeSchema>;
