@@ -829,6 +829,32 @@ and it is accepted deliberately.
    of a draw, so its score cannot describe that pairing. The organizer owns it.
 4. **The organizer can still override.** The manual buttons keep working, and a
    later identical `gs` does not undo their correction, because of guard 1.
+5. **A synced score may never go backwards.** The life counter's own score
+   only ever counts up while a match runs -- a game is won, the number goes
+   up. It resets to 0-0 only when a genuinely new game begins, which in this
+   feature means a new tracking ID, and therefore a different pairing. So a
+   score lower than the high-water mark this pairing has already reached
+   does not mean a game was un-won: it means the phone lost its state, most
+   often a second device opening the same link with no saved game, a
+   cleared browser, or a private window.
+
+   The mark is `syncedScore`, not the live counters. The counters move on
+   their own through the manual buttons (guard 4), so a device that has
+   genuinely incremented past what it last sent must still write, even
+   where a correction has since put a counter below it. Before a first sync
+   there is no `syncedScore` to compare against, so the counters stand in
+   for that one case, which keeps a first `0-0` from wiping a result the
+   organizer already typed by hand.
+
+   A rejected score writes nothing and is not settled onto the pairing.
+   Settling it would pull the mark itself down to the stale value, and the
+   next redelivery of the real, higher score would then read as an advance
+   over that lowered mark rather than the repeat it is. Nothing needs
+   settling for this to terminate: the same stale score loses the same
+   comparison every time the planner runs, so leaving it alone is already
+   stable -- unlike guard 2's drop, this case is reachable and ordinary, not
+   a wrong number no button press could produce, so it earns no warning
+   either.
 
 ### Where the settled score lives
 
@@ -865,3 +891,58 @@ totals split into each player's own column, above that player's counter:
         14                  20
      [-] 0 [+]         [-] 1 [+]
 ```
+
+---
+
+## 17. A device joining a game in progress adopts its score
+
+Found by running the feature, and made dangerous by section 16: the published
+score writes into real standings.
+
+### The fault
+
+`readTrackEntry` decides whether a link is new by comparing it against the
+link stored on this device. A device with nothing stored therefore treats
+every link as new: a second phone, a private window, cleared storage, or an
+organizer's browser that has since tracked a different table, because
+`trackedGame` is one key per origin.
+
+A new link resets the match score to 0-0, publishes it, and the board takes
+0-0 as news. **A player switching phones wipes their own match score from the
+tournament.**
+
+Guard 5 in section 16 contains this: a score below the high-water mark is
+refused. It does not cure it. The new device still holds no score, so it
+publishes nothing useful until it wins a game, and then publishes 1-0 for a
+match that stood at 1-1.
+
+### The cure
+
+**Publish `gs` only after reading the node once, and adopt what is there.**
+
+The hook already subscribes to the node for the two-writer guard, so the read
+costs no extra connection. The rule is about ordering, not data: do not
+publish a score you have not yet checked against the node.
+
+On the first snapshot after connecting:
+
+- The node carries a score and this device has none, so adopt it. This is a
+  device joining a game already in progress.
+- The node carries no score, or this device already has one, so change
+  nothing.
+
+Until that first snapshot arrives, every write omits `gs`. An omitted score is
+already safe: the board skips a node without one and leaves its counters
+alone.
+
+### Why this and not something narrower
+
+Refusing to publish a score from a device with no history stops the wipe but
+leaves the new device permanently wrong, publishing 1-0 for a 1-1 match.
+Adoption is what makes the new device correct rather than merely harmless.
+
+### What it does not cover
+
+Life totals are not adopted. A player moving to a new phone re-enters them,
+which is expected — they are a live reading, not a result. Only the score
+feeds the standings, so only the score has to survive the move.
