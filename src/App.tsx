@@ -9,11 +9,28 @@ import {
 import {
   clearStoredTrackLink,
   clearTrackLinkFromUrl,
-  readTrackEntry,
   storeTrackLink,
+  type TrackEntry,
 } from './Utils/tracking/trackLink';
 
-const App = () => {
+const App = ({
+  /**
+   * A track link starts a game that publishes life totals to EventTrinket.
+   * `isNew` separates the two ways a link arrives. A link for a game that is
+   * not already being tracked builds a fresh table. A link restored from
+   * localStorage, or a re-scan of the game in progress, only resumes the
+   * publishing, so a reopened tab keeps the life totals it had.
+   *
+   * It arrives as a prop because `main.tsx` has to know the answer before
+   * React renders: that is where the previous game's keys are cleared, and
+   * clearing has to happen before any provider seeds its state from them.
+   * Reading it there also keeps it out of a render pass, which StrictMode
+   * runs twice -- see `readTrackEntry`'s doc comment.
+   */
+  trackEntry,
+}: {
+  trackEntry: TrackEntry | null;
+}) => {
   // Check for shared state in URL during initialization
   // This runs once and doesn't trigger re-renders
   const sharedState = useMemo(() => {
@@ -28,13 +45,6 @@ const App = () => {
 
     return null;
   }, []);
-
-  // A track link starts a game that publishes life totals to EventTrinket.
-  // `isNew` separates the two ways a link arrives. A link for a game that is
-  // not already being tracked builds a fresh table. A link restored from
-  // localStorage, or a re-scan of the game in progress, only resumes the
-  // publishing, so a reopened tab keeps the life totals it had.
-  const trackEntry = useMemo(() => readTrackEntry(), []);
 
   useEffect(() => {
     // A link keeps a game tracked across a reload. No link means there is
@@ -54,7 +64,6 @@ const App = () => {
     <GlobalSettingsProvider
       sharedState={sharedState}
       trackLink={trackEntry?.link ?? null}
-      newTrackLink={trackEntry?.isNew ?? false}
     >
       <PlayersProvider
         sharedState={sharedState}

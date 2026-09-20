@@ -52,7 +52,6 @@ export type GlobalSettingsContextType = {
   saveCurrentGame: (currentGame: SavedGame) => void;
   gameScore: GameScore;
   setGameScore: (score: GameScore) => void;
-  resetGameScore: () => void;
   lifeHistory: LifeHistoryEvent[];
   addLifeHistoryEvent: (event: LifeHistoryEvent) => void;
   clearLifeHistory: () => void;

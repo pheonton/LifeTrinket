@@ -85,12 +85,14 @@ export type TrackEntry = { link: TrackLink; isNew: boolean };
  * Which game this load is tracking, and whether it is one that still has to
  * be built.
  *
- * Reading only, on purpose. StrictMode runs a memo factory twice, and a
- * factory that stored the link and stripped the hash would answer the second
- * run differently from the first -- no hash left to find, a stored link that
- * was not there before -- and React keeps the second answer. That is a new
- * link arriving as a resume, and a table that never gets built. The writes
- * belong after the commit, and `App` does them in an effect.
+ * Reading only, on purpose. A reader that also stored the link and stripped
+ * the hash would answer a second call differently from the first -- no hash
+ * left to find, a stored link that was not there before -- which is a new
+ * link arriving as a resume, and a table that never gets built. Nothing
+ * guarantees one call: React runs a render, and a memo factory, twice under
+ * StrictMode. So this stays pure, `main.tsx` calls it once at startup to
+ * decide what the new game must clear, and the writes happen after the
+ * commit, in `App`'s effect.
  */
 export function readTrackEntry(
   storage?: Pick<Storage, 'getItem'>,

@@ -22,23 +22,16 @@ import { gte as semverGreaterThanOrEqual } from 'semver';
 import type { SharedGameState } from '../Types/SharedState';
 import type { TrackLink } from '../Types/Tracking';
 import { clearStoredTrackLink } from '../Utils/tracking/trackLink';
+import { clearKeys, keysToClearOnGoToStart } from '../Utils/storageScope';
 
 export const GlobalSettingsProvider = ({
   children,
   sharedState,
   trackLink,
-  newTrackLink,
 }: {
   children: ReactNode;
   sharedState?: SharedGameState | null;
   trackLink?: TrackLink | null;
-  /**
-   * True only for a link that names a game not already in progress -- the
-   * same distinction `PlayersProvider`'s `newTrackLink` prop makes. A link
-   * restored on a reload, or a re-scan of the game already being tracked,
-   * must leave the score alone; only a genuinely new game must start at 0-0.
-   */
-  newTrackLink?: boolean;
 }) => {
   const analytics = useAnalytics();
   const metrics = useMetrics();
@@ -150,26 +143,12 @@ export const GlobalSettingsProvider = ({
     setGameScore(score);
     localStorage.setItem('gameScore', JSON.stringify(score));
   };
-  const resetGameScore = () => {
-    setGameScore({});
-    localStorage.removeItem('gameScore');
-  };
 
-  // A new track link means a game that has not been played on this device.
-  // The lazy state above may have just restored a stale score left over from
-  // whatever this device played before; that score must never reach the
-  // tournament app under the new game's id. This runs in an effect, once on
-  // mount, rather than during render: `readTrackEntry`'s doc comment (in
-  // trackLink.ts) explains why that decision cannot be made or acted on
-  // during render, and `newTrackLink` here only ever describes the link this
-  // mount loaded -- App computes it once via useMemo, so it does not change
-  // across re-renders of this provider.
-  useEffect(() => {
-    if (newTrackLink) {
-      resetGameScore();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Nothing here resets the score for a new tracked game. `main.tsx` clears
+  // every game-scoped key before React renders (see Utils/storageScope), so
+  // the lazy state above already reads an empty score, an empty transcript
+  // and a stopped timer -- one path for all of them, rather than one field
+  // remembered here and the rest forgotten.
 
   const savedLifeHistory = localStorage.getItem('lifeHistory');
   const [lifeHistory, setLifeHistory] = useState<LifeHistoryEvent[]>(() => {
@@ -260,14 +239,9 @@ export const GlobalSettingsProvider = ({
 
   const ctxValue = useMemo((): GlobalSettingsContextType => {
     const removeLocalStorage = async () => {
-      localStorage.removeItem('initialGameSettings');
-      localStorage.removeItem('players');
-      localStorage.removeItem('playing');
-      localStorage.removeItem('showPlay');
-      localStorage.removeItem('preStartComplete');
-      localStorage.removeItem('gameScore');
-      localStorage.removeItem('timerStartedAt');
-      localStorage.removeItem('timerAccumulatedMs');
+      // The list lives in Utils/storageScope, next to the game-scoped keys it
+      // is derived from, so this path and a new game cannot drift apart.
+      clearKeys(keysToClearOnGoToStart());
       clearTrackedGame();
 
       setPlaying(false);
@@ -411,7 +385,6 @@ export const GlobalSettingsProvider = ({
       },
       gameScore,
       setGameScore: setGameScoreAndLocalStorage,
-      resetGameScore,
       lifeHistory,
       addLifeHistoryEvent,
       clearLifeHistory,
