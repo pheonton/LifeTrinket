@@ -739,3 +739,57 @@ These are accepted, not open questions.
 | Tracking ID length | 20 characters | Both |
 | `wr` length | at most 16 characters | Database rules |
 | Database region | `europe-west1` | `draft-trinket` |
+
+---
+
+## 15. Addendum: the match game score
+
+Added after the first live run. A best-of-three match already tracks a game
+score in LifeTrinket, and the organizer's board should show it beside the life
+totals.
+
+**Display only.** EventTrinket shows the score. The organizer still enters the
+match result by hand with the existing counters. LifeTrinket never writes into
+tournament standings, so a stray tap on a player's phone cannot move a real
+result.
+
+### The node gains one optional field
+
+```
+gs: [1, 0]      // games won, seat-indexed, same order as `p`
+```
+
+**The field must be optional, and the rules must allow it before any client
+writes it.** The node rules carry `"$other": { ".validate": false }` at both
+levels, so an unnamed key is rejected and every write fails. A named rule for
+`gs` is what makes it legal. It stays out of the required-children list, so a
+client that does not send it still writes successfully.
+
+```json
+"gs": {
+  ".validate": "newData.hasChildren()",
+  "$seat": {
+    ".validate": "$seat.matches(/^[0-5]$/) && newData.isNumber()
+                  && newData.val() >= 0 && newData.val() <= 99"
+  }
+}
+```
+
+### Only the full snapshot carries it
+
+`gs` needs no place in `diffSeats`. The score changes exactly when a game ends
+or is undone, and every one of those paths already runs a full snapshot through
+`sendFull`. A diff path for it would be dead code.
+
+### The archive is unchanged
+
+`trackedGames` keeps its eleven keys. The Firestore rule uses `hasAll` together
+with `hasOnly`, so adding a twelfth key means changing the rule, the record
+builder and the rules tests. Display only does not need it, so it stays out.
+Adding it later is a deliberate, separate change.
+
+### Order of work
+
+1. The database rules, with tests. Nothing may write `gs` until these allow it.
+2. LifeTrinket publishes it in `sendFull`.
+3. EventTrinket renders it, for example `19 – 19 (1–0)`.
