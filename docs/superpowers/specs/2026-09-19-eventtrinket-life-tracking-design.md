@@ -946,3 +946,37 @@ Adoption is what makes the new device correct rather than merely harmless.
 Life totals are not adopted. A player moving to a new phone re-enters them,
 which is expected — they are a live reading, not a result. Only the score
 feeds the standings, so only the score has to survive the move.
+
+---
+
+## 18. Reopening a tracked game
+
+Once a pairing has a tracking ID, the Track button is replaced by the live
+readout and there is no way back to the link. A player who closed the tab, or
+who opened the link on the wrong phone, cannot rejoin, and the organizer has
+nothing to hand them: the ID exists only inside the tournament's stored state.
+
+### What it does
+
+A control beside the readout opens a dialog holding the same link, as a QR
+code and as a button.
+
+**It reuses the existing tracking ID. It never mints a new one.** A new ID
+would abandon the live node, lose the match score the board is reading, and
+leave an orphan to expire.
+
+The QR matters more than the button. The organizer's laptop is usually not
+the device that needs the link — a player's phone is.
+
+### The alignment constraint
+
+The readout's life totals sit in a column above each player's win counter,
+and that alignment was asked for explicitly. The reopen control must not
+disturb it.
+
+### What it cannot do in development
+
+A QR encodes whatever `VITE_LIFETRINKET_URL` points at. In development that is
+`http://localhost:5173`, which a phone cannot reach. Scanning from a phone
+needs a production build, or a dev server started with `--host` and the URL
+set to the machine's address on the network.
