@@ -73,9 +73,16 @@ describe('the shipped .env.production', () => {
   // A placeholder is worse than an empty value. `isTrackingConfigured()` reads
   // a non-empty placeholder as configured, and the database does not check the
   // key for unauthenticated access, so tracking would appear to work while
-  // pointed at a key nobody chose.
-  it('carries the tracking key, empty, until the live database exists', () => {
-    expect(value('VITE_TRACK_API_KEY')).toBe('');
+  // pointed at a key nobody chose. Empty is the safe state; a real key is the
+  // working one. Anything in between is the trap this guards.
+  it('carries a real tracking key, or none at all', () => {
+    const key = value('VITE_TRACK_API_KEY');
+
+    if (key === '') {
+      return;
+    }
+
+    expect(key).toMatch(/^AIza[\w-]{20,}$/);
   });
 
   it('still names the database it will talk to', () => {
