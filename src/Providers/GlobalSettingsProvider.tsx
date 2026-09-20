@@ -21,6 +21,7 @@ import { LifeHistoryEvent } from '../Types/Player';
 import { gte as semverGreaterThanOrEqual } from 'semver';
 import type { SharedGameState } from '../Types/SharedState';
 import type { TrackLink } from '../Types/Tracking';
+import { clearStoredTrackLink } from '../Utils/tracking/trackLink';
 
 export const GlobalSettingsProvider = ({
   children,
@@ -178,7 +179,7 @@ export const GlobalSettingsProvider = ({
     trackLink?.id ?? null
   );
   const clearTrackedGame = useCallback(() => {
-    localStorage.removeItem('trackedGame');
+    clearStoredTrackLink();
     setTrackedGameId(null);
   }, []);
 

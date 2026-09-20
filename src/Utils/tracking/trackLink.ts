@@ -50,3 +50,35 @@ export function clearTrackLinkFromUrl(
   }
   hist.replaceState(null, '', loc.pathname + loc.search);
 }
+
+/** Where a track link waits out a reload. */
+export const TRACKED_GAME_KEY = 'trackedGame';
+
+/**
+ * The link this device is tracking, or null.
+ *
+ * It reads and does not write, not even to drop a value that fails to
+ * validate. A reader that also cleans up cannot be called from a render, and
+ * this one is: the decision of whether a link is new has to be reached the
+ * same way on every render pass. `clearStoredTrackLink` does the cleaning.
+ */
+export function readStoredTrackLink(): TrackLink | null {
+  const saved = localStorage.getItem(TRACKED_GAME_KEY);
+  if (!saved) {
+    return null;
+  }
+  try {
+    const parsed = trackLinkSchema.safeParse(JSON.parse(saved));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+export function storeTrackLink(link: TrackLink): void {
+  localStorage.setItem(TRACKED_GAME_KEY, JSON.stringify(link));
+}
+
+export function clearStoredTrackLink(): void {
+  localStorage.removeItem(TRACKED_GAME_KEY);
+}

@@ -9,48 +9,56 @@ import {
 import type { SharedGameState } from '../Types/SharedState';
 import { DEFAULT_TRACKED_LIFE, type TrackLink } from '../Types/Tracking';
 import { createInitialPlayers } from '../Data/getInitialPlayers';
+import { readStoredTrackLink } from '../Utils/tracking/trackLink';
 
 /**
- * The settings the player last used, which a track link then overrides. A
- * corrupt value must not stop the counter, so it falls back to the defaults.
+ * The settings the player last used, or null when there are none to read.
+ * Only the start menu ever writes them, and a track link must never touch
+ * them: they are the setup the player goes back to after the match.
  */
-const readSavedGameSettings = (): InitialGameSettings => {
+const readSavedGameSettings = (): InitialGameSettings | null => {
   const saved = localStorage.getItem('initialGameSettings');
   if (!saved) {
-    return defaultInitialGameSettings;
+    return null;
   }
   try {
     const parsed = initialGameSettingsSchema.safeParse(JSON.parse(saved));
-    return parsed.success ? parsed.data : defaultInitialGameSettings;
+    return parsed.success ? parsed.data : null;
   } catch {
-    return defaultInitialGameSettings;
+    return null;
   }
+};
+
+/**
+ * The life total a reset goes back to, or null when nothing says.
+ *
+ * A tracked game answers from its own link, which is the only record of what
+ * the tournament set the match to. The player's saved settings cannot answer
+ * for it -- they describe the game the player would have set up -- and on a
+ * device that has only ever opened a link there are none to read at all.
+ */
+const readStartingLifeTotal = (): number | null => {
+  const tracked = readStoredTrackLink();
+  if (tracked) {
+    return tracked.life ?? DEFAULT_TRACKED_LIFE;
+  }
+  return readSavedGameSettings()?.startingLifeTotal ?? null;
 };
 
 /**
  * Seat order is fixed by the link. Seat 0 is player1 of the pairing, and
  * LifeTrinket never reorders the seats. The link decides only the seat count
  * and the starting life; the orientation and the format stay the player's own.
- *
- * The derived settings are persisted, not just used. `resetCurrentGame` reads
- * `initialGameSettings` straight from localStorage, and only the start menu
- * ever writes that key, so without this a tracked match would reset to the
- * player's own life total -- or, on a device that has only ever opened a
- * link, find no key at all and refuse to reset.
  */
-const startGameFromTrackLink = (link: TrackLink): Player[] => {
-  const settings: InitialGameSettings = {
-    ...readSavedGameSettings(),
+const startGameFromTrackLink = (link: TrackLink): Player[] =>
+  createInitialPlayers({
+    ...(readSavedGameSettings() ?? defaultInitialGameSettings),
     numberOfPlayers: link.seats.length,
     startingLifeTotal: link.life ?? DEFAULT_TRACKED_LIFE,
-  };
-  localStorage.setItem('initialGameSettings', JSON.stringify(settings));
-
-  return createInitialPlayers(settings).map((player, seat) => ({
+  }).map((player, seat) => ({
     ...player,
     name: link.seats[seat],
   }));
-};
 
 export const PlayersProvider = ({
   children,
@@ -133,13 +141,9 @@ export const PlayersProvider = ({
     };
 
     const resetCurrentGame = () => {
-      const savedGameSettings = localStorage.getItem('initialGameSettings');
+      const startingLifeTotal = readStartingLifeTotal();
 
-      const initialGameSettings: InitialGameSettings = savedGameSettings
-        ? JSON.parse(savedGameSettings)
-        : null;
-
-      if (!initialGameSettings) {
+      if (startingLifeTotal === null) {
         return;
       }
 
@@ -159,7 +163,7 @@ export const PlayersProvider = ({
           counter.value = 0;
         });
 
-        player.lifeTotal = initialGameSettings.startingLifeTotal;
+        player.lifeTotal = startingLifeTotal;
         player.hasLost = false;
 
         player.isStartingPlayer = newStartingPlayerIndex === player.index;
