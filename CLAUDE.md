@@ -87,14 +87,29 @@ These hooks throw descriptive errors if used outside their providers, preventing
 
 ## Data Persistence
 
-**LocalStorage Keys**:
-- `players` - Current player state array
-- `initialGameSettings` - Game setup configuration
-- `settings` - User preferences
-- `playing` / `showPlay` - View routing flags
-- `savedGame` - Full game snapshot (cleared on resume)
-- `gameScore` - Match score tracking
-- `startingPlayerIndex`, `preStartComplete` - Misc game state
+**LocalStorage Keys**: every persisted key is listed and classified in
+`src/Utils/storageScope.ts`. Read that file before you add one.
+
+A key is one of two kinds, and the distinction is the point:
+
+- **Game scoped**, cleared when a new game starts: `players`, `gameScore`,
+  `lifeHistory`, `timerStartedAt`, `timerAccumulatedMs`, `startingPlayerIndex`,
+  `preStartComplete`.
+- **Device scoped**, kept forever: `settings`, `initialGameSettings`.
+
+**This distinction was learned the hard way, three times.** State belonging to
+one game leaked into the next, and each time it looked like a different bug: a
+tracked game inherited the previous game's start time, then its match score,
+then its life transcript. The score one wrote a wrong result into a real
+tournament's standings.
+
+A `PersistedKey` union is asserted against the lists at compile time, so
+`tsc` fails on a key that belongs to neither. Do not work around that
+assertion. Classify the key.
+
+`clearKeys(keysToClearOnLoad(trackEntry))` runs in `src/main.tsx` **before
+React renders**, not in a provider effect. `useGameTimer` seeds itself from
+localStorage during render, so a provider effect is too late.
 
 **Validation Strategy**:
 1. All persisted data has Zod schemas defined in `src/Types/Settings.ts`
@@ -222,11 +237,96 @@ Analytics are wrapped in `src/Hooks/useAnalytics.ts`:
 - **Development Mode**: Console logs instead of sending events
 - **Auto-Versioning**: All events include app version
 - **Graceful Degradation**: Fails silently if Firebase unavailable
-- **Minimal Tracking**: Only "Games started" and "Back to start" events (as stated in README)
+- **Not minimal**: the README and earlier versions of this file claimed only
+  two events. The code sends far more.
 
-Current tracked events:
-- `game_start` - When starting a new game
-- `reset_game` - When returning to start menu
+**Current tracked events**, counted from the source rather than from memory:
+
+```bash
+grep -rhoE "trackEvent\('[a-z_]+'" src/ | sort -u
+```
+
+That returns 32 event names, including `life_gained` and `life_lost`, which
+fire on interactions with the counter. They are the bulk of the volume this
+app produces. Anyone reasoning about analytics cost or user privacy should
+run the command rather than trust a list in a document, because a list here
+goes stale the moment someone adds an event.
+
+## Live Game Tracking
+
+A sibling app, EventTrinket, deep-links into LifeTrinket so a tournament
+organizer can watch life totals during a round. The design lives in
+`docs/superpowers/specs/2026-09-19-eventtrinket-life-tracking-design.md`, and
+it is the authority for anything below.
+
+**The governing constraint, above every other consideration: tracking must
+never degrade the life counter.** No tracking failure may throw into React. No
+tracking failure may block a tap. Every failure path ends at `status: 'error'`
+and silence. Someone who never tracks a game must not notice the feature
+exists.
+
+### How a game becomes tracked
+
+A URL fragment, and nothing else:
+
+```
+https://lifetrinket.web.app/#track=<lz-string payload>
+```
+
+It decodes to `{ v, id, seats, life?, label? }` and is validated by
+`trackLinkSchema` in `src/Types/Tracking.ts`. A link that does not decode
+returns `null` rather than throwing.
+
+**The payload rides in the fragment on purpose.** A browser never sends a
+fragment to a server, so the player names in a link never reach a hosting
+log. They are the only names in the feature: the published node carries
+seat-indexed numbers and no names at all.
+
+The 20-character `id` is the only secret. The database rules deny listing, so
+it cannot be discovered, only shared.
+
+### The files
+
+| File | Responsibility |
+|---|---|
+| `src/Types/Tracking.ts` | Zod schemas for the link and the node |
+| `src/Utils/tracking/trackLink.ts` | Encode, decode, and read `#track=` |
+| `src/Utils/tracking/snapshot.ts` | `Player[]` to seat states, and the diff |
+| `src/Utils/tracking/throttle.ts` | The trailing-edge write throttle |
+| `src/Utils/tracking/trackDb.ts` | Lazy Firebase handle, the only file that imports it |
+| `src/Hooks/useGameTracker.ts` | The connection, the write policy, the status |
+
+`firebase/database` is behind a dynamic import. It costs about 40 KB gzipped
+and most users never track a game, so it must stay out of the main bundle.
+
+### Traps in `useGameTracker.ts`
+
+That file took three rounds of review to stabilise, and each round fixed
+something that is not obvious from reading it:
+
+- **A registration exists exactly while this writer owns a node it believes is
+  live.** `stoppedRef` is the ownership half of that rule, and `winnerRef` the
+  liveness half. A write from a stopped writer lands on another device's node.
+- **`onDisconnect` is consumed when it fires**, so it is re-armed on every
+  reconnect, and cancelled when the game ends or another device takes over.
+- **`exp` comes from server time** through `.info/serverTimeOffset`, never the
+  device clock. A wrong clock would otherwise plant a node that never expires
+  or one already expired.
+- **The recovery ladder terminates.** One full snapshot on failure, then stop.
+  A retry loop against a rejecting rule burns bandwidth and fixes nothing.
+- **Every SDK call in the cleanup is wrapped**, individually, so one failure
+  cannot strand the listeners after it.
+
+Do not change the effect dependency arrays or the `eslint-disable` line
+without reading the design first. They are the shape that makes the rest work.
+
+### Testing it
+
+The pure parts are covered: the link codec, the snapshot, the diff, the
+throttle and the storage scope. `useGameTracker` has no automated test, by
+design, because a test mocking the Firebase SDK would assert against mocks.
+It is verified end to end against the Firebase emulator, which lives in the
+EventTrinket repository, not this one.
 
 ## Version Management
 
