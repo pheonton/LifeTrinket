@@ -830,6 +830,31 @@ and it is accepted deliberately.
 4. **The organizer can still override.** The manual buttons keep working, and a
    later identical `gs` does not undo their correction, because of guard 1.
 
+### Where the settled score lives
+
+Guard 1 needs somewhere to record the score the board has already acted on.
+That place is the pairing: `pairingSchema` carries an optional
+`syncedScore`, and `planWinSync` reads it off the pairing and writes it
+back.
+
+It may not be in-memory state. The organizer presses Back, or reloads, or
+the tab is discarded, and an in-memory record is gone. The same `gs` then
+arrives, reads as news, and is written over the correction -- into
+`player.wins`, which drives the standings, for the six hours the node
+lives. Guard 4 is a promise about a tournament, so it has to be kept by the
+tournament.
+
+The field is optional for the same reason `trackId` is: `GameProvider` sets
+the game to `null` on a failed `safeParse`, so a required field would empty
+every running tournament on deploy.
+
+Recording a settle therefore costs a write. Every pairing the planner acts
+on produces one, including a pairing whose counters already show the score
+and a pairing whose score was dropped by guard 2. Both leave the counters
+alone and carry only `syncedScore`. Without the first, a correction typed
+over a score the counters already matched would be undone on the next
+mount. Without the second, a dropped score would warn again on every mount.
+
 ### The display becomes redundant
 
 The counters now show the score, so the readout stops repeating it. The life
