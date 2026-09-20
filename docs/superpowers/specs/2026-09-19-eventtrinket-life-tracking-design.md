@@ -1091,3 +1091,94 @@ A QR encodes whatever `VITE_LIFETRINKET_URL` points at. In development that is
 `http://localhost:5173`, which a phone cannot reach. Scanning from a phone
 needs a production build, or a dev server started with `--host` and the URL
 set to the machine's address on the network.
+
+## 19. The round end time
+
+Every table in a round must end at the same instant. Today each phone starts
+its own countdown when its own game starts, so two tables that began three
+minutes apart finish three minutes apart. EventTrinket owns the clock, and
+this section carries that clock to the phones.
+
+This section reverses the direction of every other one. Everywhere else
+LifeTrinket writes and EventTrinket reads. Here EventTrinket writes a value
+and LifeTrinket only reads it.
+
+### 19.1 Why the value cannot live in the game node
+
+`useGameTracker` replaces the whole node with `set` on every full snapshot:
+at game start, on the recovery ladder, and when the winner changes. A field
+written into `/live/$gameId` by EventTrinket is therefore deleted by the
+phone, repeatedly, at moments neither side controls.
+
+The round end time needs a node the phone never writes.
+
+### 19.2 The session id
+
+Nothing in EventTrinket identifies a session. A `Match` has `id: 1, 2, 3`,
+which collides between tournaments, and the tournament object has no id at
+all.
+
+EventTrinket mints a session id when a tournament is created: 20 characters
+from the alphabet `trackIds.ts` already uses. It is stored on the game object,
+so it survives a reload, and it names one tournament for the whole event.
+
+Like a track id, it is unguessable and the rules deny listing, so it can be
+shared but not discovered.
+
+### 19.3 The node
+
+```
+/rounds/$sessionId = { v: 1, end: <epoch ms>, exp: <epoch ms> }
+```
+
+One node per session, not per round and not per table. The organizer starting
+the clock overwrites `end`. Every table in the session reads the same value,
+so the tables agree by construction rather than by agreement.
+
+`exp` matches the live tree, so the same sweep removes an abandoned node.
+
+### 19.4 The link
+
+`trackLinkSchema` gains one optional field:
+
+```ts
+r: z.string().length(TRACK_ID_LENGTH).optional(),
+```
+
+Optional on purpose. A link minted before this feature existed has no `r`, and
+must keep working unchanged.
+
+### 19.5 What LifeTrinket does with it
+
+A link with `r` subscribes to `/rounds/$r`. The subscription costs no
+connection: the phone already holds three listeners on one socket, and the
+Firebase client multiplexes them. That matters, because the free tier caps
+simultaneous connections at 100 and nothing else in this design approaches it.
+
+`GameTimer` then shows **the wall-clock time the round ends**, not a
+countdown. An absolute instant cannot express a pause, and a counter that
+keeps running through a judge call tells every table a lie. A displayed end
+time is either right or visibly stale, which is the honest failure.
+
+The "Time's Up" overlay still fires, at `end` rather than at a local
+expiry. The display changes; the behavior at expiry does not.
+
+`end` is compared against server time, through the `.info/serverTimeOffset`
+the hook already reads. A device with a wrong clock shows the right moment.
+
+### 19.6 Degrading
+
+Each of these leaves the life counter untouched:
+
+- A link without `r`: no subscription, and today's local timer.
+- A node that does not exist yet, because the clock has not started: no
+  readout. Not a zero, and not a guess.
+- A node that fails to parse, or a read that is denied: no readout.
+- The phone offline: the last known `end` stands. It is an absolute
+  timestamp, so it stays correct without a connection.
+
+### 19.7 Rules
+
+`/rounds/$sessionId` mirrors the live tree: `.read` true per node with no
+listing, `$other: false`, `v` fixed at 1, and `end` and `exp` both capped at
+`now + 12h` so a wrong clock cannot plant a node that never expires.
