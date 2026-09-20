@@ -113,8 +113,18 @@ export const GameTimer = () => {
   // the local pause means nothing to a round the organizer owns.
   if (roundEnd) {
     return (
-      <div className="absolute top-0 left-0 right-0 z-10 flex justify-center pointer-events-none">
-        <div className="bg-black/70 rounded-b-lg px-3 py-1 text-white">
+      // Below the match score badges, not on top of them. Each player card
+      // puts its badge at its own top-left corner, so in any layout with two
+      // columns the seam falls at screen centre and the right-hand player's
+      // badge sits exactly under a centred pill -- hidden completely. The
+      // offset is the badge's own geometry from `MatchScoreBadge` in
+      // LifeCounter.tsx: `top-[1vmax]` plus its `5vmin` height, and a small
+      // gap. Change it there and this has to follow.
+      <div
+        className="absolute left-0 right-0 z-10 flex justify-center pointer-events-none"
+        style={{ top: 'calc(1vmax + 5vmin + 0.8vmin)' }}
+      >
+        <div className="bg-black/70 rounded-lg px-3 py-1 text-white">
           <span className="text-xl font-semibold tabular-nums tracking-tight">
             {roundEnd.label}
           </span>
