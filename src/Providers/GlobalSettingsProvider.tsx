@@ -27,10 +27,18 @@ export const GlobalSettingsProvider = ({
   children,
   sharedState,
   trackLink,
+  newTrackLink,
 }: {
   children: ReactNode;
   sharedState?: SharedGameState | null;
   trackLink?: TrackLink | null;
+  /**
+   * True only for a link that names a game not already in progress -- the
+   * same distinction `PlayersProvider`'s `newTrackLink` prop makes. A link
+   * restored on a reload, or a re-scan of the game already being tracked,
+   * must leave the score alone; only a genuinely new game must start at 0-0.
+   */
+  newTrackLink?: boolean;
 }) => {
   const analytics = useAnalytics();
   const metrics = useMetrics();
@@ -146,6 +154,22 @@ export const GlobalSettingsProvider = ({
     setGameScore({});
     localStorage.removeItem('gameScore');
   };
+
+  // A new track link means a game that has not been played on this device.
+  // The lazy state above may have just restored a stale score left over from
+  // whatever this device played before; that score must never reach the
+  // tournament app under the new game's id. This runs in an effect, once on
+  // mount, rather than during render: `readTrackEntry`'s doc comment (in
+  // trackLink.ts) explains why that decision cannot be made or acted on
+  // during render, and `newTrackLink` here only ever describes the link this
+  // mount loaded -- App computes it once via useMemo, so it does not change
+  // across re-renders of this provider.
+  useEffect(() => {
+    if (newTrackLink) {
+      resetGameScore();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const savedLifeHistory = localStorage.getItem('lifeHistory');
   const [lifeHistory, setLifeHistory] = useState<LifeHistoryEvent[]>(() => {

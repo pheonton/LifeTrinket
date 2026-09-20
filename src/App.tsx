@@ -54,6 +54,7 @@ const App = () => {
     <GlobalSettingsProvider
       sharedState={sharedState}
       trackLink={trackEntry?.link ?? null}
+      newTrackLink={trackEntry?.isNew ?? false}
     >
       <PlayersProvider
         sharedState={sharedState}
