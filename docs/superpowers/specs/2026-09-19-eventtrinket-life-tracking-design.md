@@ -964,11 +964,24 @@ alone. From the resolution onwards it is a `set` again, carrying the score.
 The rule this preserves is the one that matters: no write touches `gs` --
 neither writing it nor deleting it -- before the node has been read.
 
-### What it does not cover
+### Life totals are adopted too
 
-Life totals are not adopted. A player moving to a new phone re-enters them,
-which is expected — they are a live reading, not a result. Only the score
-feeds the standings, so only the score has to survive the move.
+This section first said they were not, on the reasoning that a player moving
+phones re-enters them and only the score feeds the standings.
+
+**That was wrong, and reopening proved it.** A player scans the QR to rejoin
+a game in progress and sees 20 and 20, while the organizer's board beside them
+shows the real totals. The two disagree in front of the people playing, and
+the feature that exists to let someone rejoin a game hands them a game that
+has not started.
+
+The rule is simpler than the one it replaces: **a device joining a node that
+already exists and is live adopts everything that node knows.** Life totals
+and score together. A fresh table is right only when there is no node.
+
+The gate is the same one adoption already uses. A device that holds its own
+game for this tracking id keeps it, so a reload mid-match still wins over the
+node, and only a device with nothing takes what the node has.
 
 ---
 
