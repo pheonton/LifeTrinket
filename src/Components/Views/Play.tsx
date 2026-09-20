@@ -9,7 +9,7 @@ import { Players } from '../Players/Players';
 import { PreStart } from '../PreStartGame/PreStart';
 import { GameOver } from '../GameOver/GameOver';
 import { useGameTracker } from '../../Hooks/useGameTracker';
-import { TrackingChip } from '../Tracking/TrackingChip';
+import { TrackingContext } from '../../Contexts/TrackingContext';
 
 const MainWrapper = twc.div`relative w-[100dvmax] h-[100dvmin] overflow-hidden, setPlayers`;
 
@@ -180,18 +180,23 @@ export const Play = () => {
         !playing &&
         settings.showStartingPlayer && <PreStart />}
 
-      <Players gridLayout={gridLayout} />
+      {/* The player menu shows the tracking status, and it sits three
+          components below this one. Context rather than three layers of
+          props for a readout that most games never have. */}
+      <TrackingContext.Provider
+        value={{
+          status: tracker.status,
+          lastSentAt: tracker.lastSentAt,
+          forceUpdate: tracker.forceUpdate,
+        }}
+      >
+        <Players gridLayout={gridLayout} />
+      </TrackingContext.Provider>
 
       {/* Mounted whatever `showTimer` says: a tracked round end overrides
           that preference, and only the component knows whether it has one.
           It renders nothing at all otherwise. */}
       <GameTimer />
-
-      <TrackingChip
-        status={tracker.status}
-        lastSentAt={tracker.lastSentAt}
-        onForce={tracker.forceUpdate}
-      />
 
       {winner !== null && (
         <GameOver

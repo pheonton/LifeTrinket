@@ -1,8 +1,10 @@
 import { twc } from 'react-twc';
 import type { TrackerStatus } from '../../Hooks/useGameTracker';
+import { useTracking } from '../../Hooks/useTracking';
 
+// The pill only. It used to pin itself to the bottom of the play view; it
+// now lives in the player menu, so placement belongs to the caller.
 const Chip = twc.button`
-  absolute bottom-2 left-1/2 z-50 -translate-x-1/2
   flex items-center gap-2 rounded-full
   bg-black/60 px-3 py-1 text-xs text-white
 `;
@@ -28,18 +30,16 @@ const LABEL: Record<TrackerStatus, string> = {
 };
 
 /**
- * The only sign of live tracking in the play view. It shows nothing at all
- * when no game is tracked, so a player who never tracks never sees it.
+ * The only sign of live tracking, at the top of the player menu. It shows
+ * nothing at all when no game is tracked, so a player who never tracks never
+ * sees it, and the menu keeps the shape it has always had.
+ *
+ * It reads the status from context rather than from props: `Play` owns the
+ * tracker and the menu is three components below it.
  */
-export const TrackingChip = ({
-  status,
-  lastSentAt,
-  onForce,
-}: {
-  status: TrackerStatus;
-  lastSentAt: number | null;
-  onForce: () => void;
-}) => {
+export const TrackingChip = () => {
+  const { status, lastSentAt, forceUpdate } = useTracking();
+
   if (status === 'idle') {
     return null;
   }
@@ -55,7 +55,7 @@ export const TrackingChip = ({
     : null;
 
   return (
-    <Chip onClick={onForce} aria-label="Live tracking status. Tap to sync now.">
+    <Chip onClick={forceUpdate} aria-label="Live tracking status. Tap to sync now.">
       <Dot className={DOT_CLASS[status]} />
       <span>
         {LABEL[status]}
