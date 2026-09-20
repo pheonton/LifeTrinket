@@ -10,6 +10,13 @@ const readout = (endAt: number | null, now: number) =>
   planRoundEndReadout(endAt, now, 'en-GB', 'UTC');
 
 describe('planRoundEndReadout', () => {
+  // Every other case here uses en-GB, which is already a 24 hour locale, so
+  // none of them would notice hour12 being dropped. This one would: en-US
+  // formats 14:20 as "02:20 PM" unless the option is pinned.
+  it('shows plain 24 hour digits even in a 12 hour locale', () => {
+    expect(planRoundEndReadout(END, END - MINUTE, 'en-US', 'UTC')?.label).toBe('14:20');
+  });
+
   it('shows the wall-clock end time while the round is still running', () => {
     expect(readout(END, END - 10 * MINUTE)).toEqual({
       label: '14:20',

@@ -17,9 +17,17 @@ export type RoundEndReadout = {
   isExpired: boolean;
 };
 
+/**
+ * Hours and minutes as plain digits, on a 24 hour clock.
+ *
+ * `hour12` is pinned rather than left to the locale. A round end is a number
+ * a player reads at a glance across a table, and "9:10 PM" is four tokens
+ * where "21:10" is one. It also cannot be misread as the morning.
+ */
 const HOUR_AND_MINUTE: Intl.DateTimeFormatOptions = {
   hour: '2-digit',
   minute: '2-digit',
+  hour12: false,
 };
 
 /**

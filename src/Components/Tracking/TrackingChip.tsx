@@ -44,10 +44,13 @@ export const TrackingChip = ({
     return null;
   }
 
+  // 24 hour, like the round end above it. Two clocks on one screen reading
+  // "21:59" and "09:12 PM" makes a player work out whether they agree.
   const time = lastSentAt
     ? new Date(lastSentAt).toLocaleTimeString([], {
         hour: '2-digit',
         minute: '2-digit',
+        hour12: false,
       })
     : null;
 

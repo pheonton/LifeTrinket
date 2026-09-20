@@ -128,11 +128,11 @@ export const GameTimer = () => {
   if (roundEnd) {
     return (
       <div className="absolute top-0 left-0 right-0 z-10 flex justify-center pointer-events-none">
-        <div className="bg-black/60 rounded-b-md px-3 py-0.5 text-[10px] font-mono text-white/90">
-          <span className="uppercase tracking-wider opacity-75 mr-1">
-            Round ends
+        <div className="flex items-baseline gap-1.5 bg-black/70 rounded-b-lg px-3 py-1 text-white">
+          <span className="text-xs opacity-70">Ends</span>
+          <span className="text-xl font-semibold tabular-nums tracking-tight">
+            {roundEnd.label}
           </span>
-          {roundEnd.label}
         </div>
       </div>
     );
