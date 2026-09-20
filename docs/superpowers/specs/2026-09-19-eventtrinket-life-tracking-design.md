@@ -1182,3 +1182,28 @@ Each of these leaves the life counter untouched:
 `/rounds/$sessionId` mirrors the live tree: `.read` true per node with no
 listing, `$other: false`, `v` fixed at 1, and `end` and `exp` both capped at
 `now + 12h` so a wrong clock cannot plant a node that never expires.
+
+### 19.8 EventTrinket needs no new control
+
+`src/Timer/Timer.tsx` already is the round timer. It holds `expiryTime` as an
+absolute epoch value, persists it through a reload, and already offers
+Restart, Pause, Resume and Stop. It sits inside `GameProvider`, so it can
+read the session id.
+
+So this feature adds no button. `handleRestart` publishes `expiryTime` to
+`/rounds/$sessionId`, and that is the whole write path.
+
+Pause, Resume and Stop publish nothing. Under 19.5 the phones show an end
+time rather than a counter, so a pause makes that time visibly stale rather
+than quietly wrong. Stop leaves the node to expire through `exp`.
+
+**The timer runs on a second device.** The route takes a `?minutes=`
+parameter, so it is used standalone: on a projector, or on a screen that
+never ran the tournament. That device has a different `localStorage`, so
+`GameProvider` gives it no session id, and a publish would silently do
+nothing.
+
+The session id therefore also travels in the URL, as `/timer?session=<id>`.
+The parameter wins over the context value, so the projector publishes for
+the tournament named in its link rather than for whatever that browser last
+ran. A timer opened with neither publishes nothing, exactly as it does today.
