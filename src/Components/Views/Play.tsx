@@ -37,9 +37,12 @@ export const Play = () => {
     winner,
     gameScore,
     // Spec 17: a device opening the link for a match already in progress has
-    // no score of its own, and must take the one the node carries rather
-    // than publish 0-0 over a real tournament result.
+    // nothing of its own, and must take what the node carries rather than
+    // publish 0-0 and 20-20 over a real tournament match. Both setters are
+    // required by the hook: there is no useful way to let it read the node
+    // and then have nowhere to put the answer.
     onAdoptScore: setGameScore,
+    onAdoptPlayers: setPlayers,
   });
 
   let gridLayout: GridLayout;

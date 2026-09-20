@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { toSeatStates, diffSeats, toSeatScores } from './snapshot';
+import {
+  toSeatStates,
+  diffSeats,
+  toSeatScores,
+  applySeatStates,
+} from './snapshot';
 import { CounterType, Rotation, type Player } from '../../Types/Player';
 
 const makePlayer = (over: Partial<Player> = {}): Player => ({
@@ -103,5 +108,139 @@ describe('toSeatScores', () => {
 
   it('ignores entries beyond the number of players', () => {
     expect(toSeatScores({ 0: 1, 1: 2, 5: 9 }, 2)).toEqual([1, 2]);
+  });
+});
+
+describe('applySeatStates', () => {
+  const table = () => [
+    makePlayer({ index: 0 }),
+    makePlayer({ index: 1, lifeTotal: 20 }),
+  ];
+
+  it('takes the life total of every seat', () => {
+    const adopted = applySeatStates(table(), [{ l: 14 }, { l: 9 }]);
+    expect(adopted.map((p) => p.lifeTotal)).toEqual([14, 9]);
+  });
+
+  it('changes nothing else about a player', () => {
+    const before = table();
+    const [adopted] = applySeatStates(before, [{ l: 14 }, { l: 9 }]);
+    expect({ ...adopted, lifeTotal: 20 }).toEqual(before[0]);
+  });
+
+  it('leaves the players it was given untouched', () => {
+    const before = table();
+    applySeatStates(before, [{ l: 14 }, { l: 9 }]);
+    expect(before.map((p) => p.lifeTotal)).toEqual([20, 20]);
+  });
+
+  it('takes poison, and shows the counter the node says is in play', () => {
+    const [adopted] = applySeatStates(table(), [
+      { l: 14, poi: 3 },
+      { l: 9 },
+    ]);
+    expect(adopted.settings.usePoison).toBe(true);
+    expect(adopted.extraCounters).toEqual([{ type: CounterType.Poison, value: 3 }]);
+  });
+
+  it('takes poison into a counter the player already has', () => {
+    const player = makePlayer({
+      settings: { ...makePlayer().settings, usePoison: true },
+      extraCounters: [
+        { type: CounterType.Energy, value: 2 },
+        { type: CounterType.Poison, value: 1 },
+      ],
+    });
+    const [adopted] = applySeatStates([player], [{ l: 14, poi: 5 }]);
+    expect(adopted.extraCounters).toEqual([
+      { type: CounterType.Energy, value: 2 },
+      { type: CounterType.Poison, value: 5 },
+    ]);
+  });
+
+  it('leaves poison alone when the node carries none', () => {
+    const player = makePlayer({
+      settings: { ...makePlayer().settings, usePoison: true },
+      extraCounters: [{ type: CounterType.Poison, value: 4 }],
+    });
+    const [adopted] = applySeatStates([player], [{ l: 14 }]);
+    expect(adopted.settings.usePoison).toBe(true);
+    expect(adopted.extraCounters).toEqual([{ type: CounterType.Poison, value: 4 }]);
+  });
+
+  // A tracked game starts as a non-commander game, but the node is the
+  // record of what is being played, and it overturns that.
+  const commanderTable = () => [
+    makePlayer({
+      index: 0,
+      commanderDamage: [
+        { source: 0, damageTotal: 0, partnerDamageTotal: 0 },
+        { source: 1, damageTotal: 0, partnerDamageTotal: 0 },
+      ],
+    }),
+    makePlayer({
+      index: 1,
+      commanderDamage: [
+        { source: 0, damageTotal: 0, partnerDamageTotal: 0 },
+        { source: 1, damageTotal: 0, partnerDamageTotal: 0 },
+      ],
+    }),
+  ];
+
+  it('takes commander damage onto the opponent that can have dealt it', () => {
+    const [adopted] = applySeatStates(commanderTable(), [
+      { l: 14, cmd: 18 },
+      { l: 9, cmd: 0 },
+    ]);
+    expect(adopted.commanderDamage).toEqual([
+      { source: 0, damageTotal: 0, partnerDamageTotal: 0 },
+      { source: 1, damageTotal: 18, partnerDamageTotal: 0 },
+    ]);
+  });
+
+  it('shows commander damage at every seat once the node carries any', () => {
+    const adopted = applySeatStates(commanderTable(), [
+      { l: 14, cmd: 18 },
+      { l: 9 },
+    ]);
+    expect(adopted.map((p) => p.settings.useCommanderDamage)).toEqual([
+      true,
+      true,
+    ]);
+  });
+
+  it('leaves the format alone for a node whose damage is all zeroes', () => {
+    const adopted = applySeatStates(commanderTable(), [
+      { l: 14, cmd: 0 },
+      { l: 9, cmd: 0 },
+    ]);
+    expect(adopted.map((p) => p.settings.useCommanderDamage)).toEqual([
+      false,
+      false,
+    ]);
+    expect(adopted[0].commanderDamage).toEqual(commanderTable()[0].commanderDamage);
+  });
+
+  it('leaves the format alone for a node that carries no damage at all', () => {
+    const adopted = applySeatStates(commanderTable(), [{ l: 14 }, { l: 9 }]);
+    expect(adopted.map((p) => p.settings.useCommanderDamage)).toEqual([
+      false,
+      false,
+    ]);
+  });
+
+  it('survives a player with no opponents to place damage on', () => {
+    const [adopted] = applySeatStates(
+      [makePlayer({ index: 0, commanderDamage: [] })],
+      [{ l: 14, cmd: 18 }]
+    );
+    expect(adopted.settings.useCommanderDamage).toBe(true);
+    expect(adopted.commanderDamage).toEqual([]);
+  });
+
+  it('refuses a seat list that is not this table', () => {
+    const before = table();
+    expect(applySeatStates(before, [{ l: 14 }])).toBe(before);
+    expect(applySeatStates(before, [{ l: 14 }, { l: 9 }, { l: 4 }])).toBe(before);
   });
 });

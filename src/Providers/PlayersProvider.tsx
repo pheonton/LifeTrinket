@@ -2,6 +2,7 @@ import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { Player } from '../Types/Player';
 import { PlayersContextType, PlayersContext } from '../Contexts/PlayersContext';
 import {
+  GameFormat,
   InitialGameSettings,
   defaultInitialGameSettings,
   initialGameSettingsSchema,
@@ -47,14 +48,29 @@ const readStartingLifeTotal = (): number | null => {
 
 /**
  * Seat order is fixed by the link. Seat 0 is player1 of the pairing, and
- * LifeTrinket never reorders the seats. The link decides only the seat count
- * and the starting life; the orientation and the format stay the player's own.
+ * LifeTrinket never reorders the seats.
+ *
+ * The format follows the event, and the orientation follows the player. A
+ * tracked game is a round of a Swiss tournament: it is not commander,
+ * whatever the player last set up for their own table, and a commander
+ * player's saved `useCommanderDamage` used to carry damage bars and a
+ * commander tax counter into a match that has neither. Orientation is the
+ * other kind of preference entirely -- it says how the player holds their
+ * phone -- so it is still inherited, along with everything else the link does
+ * not decide.
+ *
+ * This decides only how the game *starts*. A node that already carries
+ * commander damage overturns it, in `applySeatStates`: the node is the record
+ * of what is being played, and hiding damage another device is tracking would
+ * show a false life state.
  */
 const startGameFromTrackLink = (link: TrackLink): Player[] =>
   createInitialPlayers({
     ...(readSavedGameSettings() ?? defaultInitialGameSettings),
     numberOfPlayers: link.seats.length,
     startingLifeTotal: link.life ?? DEFAULT_TRACKED_LIFE,
+    useCommanderDamage: false,
+    gameFormat: GameFormat.Standard,
   }).map((player, seat) => ({
     ...player,
     name: link.seats[seat],

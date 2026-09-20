@@ -983,6 +983,81 @@ The gate is the same one adoption already uses. A device that holds its own
 game for this tracking id keeps it, so a reload mid-match still wins over the
 node, and only a device with nothing takes what the node has.
 
+#### The two gates are not the same test
+
+"Holds its own game" and "holds its own score" look like one gate and are not.
+A device reloading in the middle of the first game of a match holds no score
+yet -- the match stands at 0-0 -- and its life totals are nevertheless the
+real ones, fresher than anything the node has seen. Gating the totals on the
+score would hand that device the node's reading and lose every tap since the
+last publish.
+
+So the score keeps the gate it was verified with, a result of this device's
+own, and the life totals take the wider one: **has this device played this
+game before?** The saved start time answers it. `trackedGameT0` is written by
+the first snapshot of every tracked game and is keyed to the game id, so a
+device with one for this id holds the game, and a device with none has just
+arrived. It is read once, in the same place and at the same moment as `t0`
+itself, because the first write puts one there a moment later.
+
+The answer is latched. A reconnect re-reads the node, and by then the node is
+this device's own writes, up to one throttle interval stale: adopting it a
+second time would roll the game backwards.
+
+#### What "everything that node knows" is, field by field
+
+- **`l`**, the life total. One number to one number, always.
+- **`poi`**, poison. One number to one number, and it switches the counter on
+  for that seat: a node carrying poison is a game being played with poison,
+  and a counter left hidden would be deleted from the node by this device's
+  next snapshot.
+- **`cmd`**, commander damage. Taken, and it overturns the format below. The
+  node is the record of what is being played, and a device that joins a table
+  and hides damage another device is tracking shows a false life state.
+  Damage means a value above zero: `cmd` present and zero is a commander game
+  with nothing dealt yet, `cmd` absent is not a commander game, and neither is
+  damage. `cmd` is the one field that cannot be put back exactly -- it is the
+  highest damage across every opponent and partner, so the total is faithful
+  and its source is not recoverable. It goes on the lowest-indexed opponent:
+  exact at the two-seat table every tournament pairing is, a placement rather
+  than an attribution at a larger one.
+
+**A node that seats a different number of players is refused whole**, and so
+is a node carrying a single value the database rules could not hold. Seat `n`
+of a four-seat node is not seat `n` of a two-seat one, and a table half from
+this game and half from another is the disagreement this adoption exists to
+end, not a repair. The device keeps the table it built and publishes it,
+which repairs the node's shape.
+
+### A tracked game is not a commander game
+
+Found the same way: commander damage bars and a commander tax counter on a
+Swiss tournament match, which is neither.
+
+`startGameFromTrackLink` spreads the player's own saved settings and overrides
+what the link decides. That is right for orientation and was wrong for
+format: a commander player's saved `useCommanderDamage` carried into every
+tracked game they opened.
+
+**The format follows the event, and the orientation follows the player.** A
+game built from a track link starts with `useCommanderDamage: false` and
+`GameFormat.Standard`. Orientation is the other kind of preference entirely --
+it says how the player holds their phone -- so it is still inherited, along
+with everything else the link does not decide.
+
+The override decides only how a game *starts*, and adoption can overturn it.
+Real data beats a default: a node carrying damage turns commander damage back
+on, for every seat, because the damage bar reads every opponent's flag and not
+just its own. Nothing about the format is written back. The node carries game
+state, and a device that adopts damage changes its own settings and nothing
+else.
+
+Note what the override does to the node: `toSeatStates` emits `cmd` only for a
+player who has commander damage switched on, so a tracked game publishes no
+`cmd` child at all rather than a zero. That is what keeps the rule above from
+spreading the format -- a non-commander game cannot be mistaken for one where
+nobody has dealt damage yet.
+
 ---
 
 ## 18. Reopening a tracked game
