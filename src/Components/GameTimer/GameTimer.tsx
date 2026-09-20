@@ -59,8 +59,14 @@ export const GameTimer = () => {
   // Auto-start when game starts playing
   const hasStartedRef = useRef(false);
   useEffect(() => {
+    // Gated on the round end, not on `showTimer`. A tracked round owns the
+    // clock, so a local countdown beside it is a second answer to a question
+    // that has one. But `showTimer` must not gate this: with the timer
+    // hidden, today's build still starts the local clock at game start, so
+    // turning the setting on mid-game shows the real elapsed time. Gating
+    // here would start it from zero at that moment instead.
     if (
-      settings.showTimer &&
+      endAt === null &&
       playing &&
       !hasStartedRef.current &&
       !isRunning &&
@@ -69,7 +75,7 @@ export const GameTimer = () => {
       start();
       hasStartedRef.current = true;
     }
-  }, [settings.showTimer, playing, isRunning, progress, start]);
+  }, [endAt, playing, isRunning, progress, start]);
 
   // A tracked round end deliberately ignores `showTimer`. Scanning the QR is
   // an explicit opt in to the tournament's clock, so a player who turned the
