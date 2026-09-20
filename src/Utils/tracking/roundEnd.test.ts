@@ -1,58 +1,67 @@
 import { describe, expect, it } from 'vitest';
-import { planRoundEndReadout } from './roundEnd';
+import { formatDuration, planRoundEndReadout } from './roundEnd';
 
-// A fixed instant, formatted in a fixed zone, so the assertions do not move
-// with the machine running them. 2026-09-20T14:20:00Z.
-const END = Date.UTC(2026, 8, 20, 14, 20, 0);
-const MINUTE = 60_000;
+const SECOND = 1000;
+const MINUTE = 60 * SECOND;
+const HOUR = 60 * MINUTE;
+const END = 1_700_000_000_000;
 
-const readout = (endAt: number | null, now: number) =>
-  planRoundEndReadout(endAt, now, 'en-GB', 'UTC');
-
-describe('planRoundEndReadout', () => {
-  // Every other case here uses en-GB, which is already a 24 hour locale, so
-  // none of them would notice hour12 being dropped. This one would: en-US
-  // formats 14:20 as "02:20 PM" unless the option is pinned.
-  it('shows plain 24 hour digits even in a 12 hour locale', () => {
-    expect(planRoundEndReadout(END, END - MINUTE, 'en-US', 'UTC')?.label).toBe('14:20');
+describe('formatDuration', () => {
+  it('reads as minutes and seconds under an hour', () => {
+    expect(formatDuration(49 * MINUTE + 32 * SECOND)).toBe('49:32');
   });
 
-  it('shows the wall-clock end time while the round is still running', () => {
-    expect(readout(END, END - 10 * MINUTE)).toEqual({
-      label: '14:20',
+  it('pads both fields', () => {
+    expect(formatDuration(5 * MINUTE + 3 * SECOND)).toBe('05:03');
+  });
+
+  it('adds an hours field only when there are hours', () => {
+    expect(formatDuration(2 * HOUR + 5 * MINUTE)).toBe('02:05:00');
+  });
+
+  // A round that has ended must read 00:00 rather than counting up. The
+  // overlay owns what happens next; this is only what the digits say while
+  // it is being dismissed.
+  it('never goes negative', () => {
+    expect(formatDuration(-1)).toBe('00:00');
+    expect(formatDuration(-5 * MINUTE)).toBe('00:00');
+  });
+});
+
+describe('planRoundEndReadout', () => {
+  it('counts down the time that is left', () => {
+    expect(planRoundEndReadout(END, END - (12 * MINUTE + 5 * SECOND))).toEqual({
+      label: '12:05',
       isExpired: false,
     });
   });
 
-  it('reports an end that has already passed as expired', () => {
-    expect(readout(END, END + MINUTE)).toEqual({
-      label: '14:20',
+  // Two devices whose games began an hour apart read the same number,
+  // because both subtract from the same published instant. That is the whole
+  // feature, and it is the one thing a local countdown cannot do.
+  it('agrees between devices, because both subtract from the same end', () => {
+    const a = planRoundEndReadout(END, END - 10 * MINUTE);
+    const b = planRoundEndReadout(END, END - 10 * MINUTE);
+    expect(a?.label).toBe(b?.label);
+  });
+
+  it('is expired at the end instant, not a second after it', () => {
+    expect(planRoundEndReadout(END, END)?.isExpired).toBe(true);
+    expect(planRoundEndReadout(END, END - 1)?.isExpired).toBe(false);
+  });
+
+  it('reads 00:00 once the round is over', () => {
+    expect(planRoundEndReadout(END, END + MINUTE)).toEqual({
+      label: '00:00',
       isExpired: true,
     });
   });
 
-  it('treats the end instant itself as expired', () => {
-    expect(readout(END, END)?.isExpired).toBe(true);
+  it('has nothing to say without an end', () => {
+    expect(planRoundEndReadout(null, END)).toBeNull();
   });
 
-  it('has no readout at all without an end', () => {
-    expect(readout(null, END)).toBeNull();
-  });
-
-  it('has no readout for an end that is not a real instant', () => {
-    expect(readout(Number.NaN, END)).toBeNull();
-    expect(readout(Number.POSITIVE_INFINITY, END)).toBeNull();
-  });
-
-  it('has no readout rather than a broken one when formatting fails', () => {
-    expect(planRoundEndReadout(END, END - MINUTE, 'en-GB', 'Not/AZone')).toBe(
-      null
-    );
-  });
-
-  it('formats in the viewer locale when none is given', () => {
-    // No locale and no zone is the real call. It must still produce a label,
-    // whatever this machine's locale turns it into.
-    expect(planRoundEndReadout(END, END - MINUTE)?.label).toBeTruthy();
+  it('has nothing to say about an end that is not a number', () => {
+    expect(planRoundEndReadout(Number.NaN, END)).toBeNull();
   });
 });

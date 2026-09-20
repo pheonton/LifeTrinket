@@ -1,65 +1,59 @@
 /**
- * What the timer shows for a tracked round: a wall-clock end time instead of
- * a countdown.
+ * What the timer shows for a tracked round: time left, counted down to the
+ * instant the organizer published.
  *
- * Spec 19.5. An absolute instant cannot express a pause, so a counter that
- * keeps running through a judge call tells every table a lie. A displayed end
- * time is either right or visibly stale, which is the honest failure.
+ * Spec 19.5. The point is not the shape of the readout but its origin. Every
+ * table subtracts from the same absolute end, so every table reaches zero
+ * together however long ago each game began. A local countdown cannot do
+ * that: it starts when its own game starts.
+ *
+ * The cost of a countdown is that an absolute instant cannot express a
+ * pause. A judge stopping the clock does not reach the phones, and they keep
+ * counting. The tables stay agreed with each other, and all of them drift
+ * from the organizer together.
  *
  * Pure, and separate from the subscription, so the decision of what to show
  * can be tested without a Firebase SDK anywhere near it.
  */
 
 export type RoundEndReadout = {
-  /** The wall-clock time the round ends, formatted for the viewer. */
+  /** Time left, as `mm:ss`, or `hh:mm:ss` past an hour. */
   label: string;
-  /** True once that instant has passed. The overlay fires on this. */
+  /** True once the end has passed. The overlay fires on this. */
   isExpired: boolean;
 };
 
 /**
- * Hours and minutes as plain digits, on a 24 hour clock.
- *
- * `hour12` is pinned rather than left to the locale. A round end is a number
- * a player reads at a glance across a table, and "9:10 PM" is four tokens
- * where "21:10" is one. It also cannot be misread as the morning.
+ * A duration as clock digits. Never negative: a round that is over reads
+ * `00:00` rather than counting up into nonsense.
  */
-const HOUR_AND_MINUTE: Intl.DateTimeFormatOptions = {
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-};
+export function formatDuration(ms: number): string {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+
+  if (hours > 0) {
+    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  }
+  return `${pad(minutes)}:${pad(seconds)}`;
+}
 
 /**
  * The whole readout, or null for no readout at all.
  *
  * Null is never a zero and never a guess: it is "this device has nothing to
  * say about when the round ends", and the caller falls back to its own timer.
- *
- * `locales` and `timeZone` exist for the tests. The real call passes neither,
- * which formats in the viewer's own locale and zone.
  */
 export function planRoundEndReadout(
   endAt: number | null,
-  now: number,
-  locales?: Intl.LocalesArgument,
-  timeZone?: string
+  now: number
 ): RoundEndReadout | null {
   if (endAt === null || !Number.isFinite(endAt)) {
     return null;
   }
 
-  let label: string;
-  try {
-    label = new Intl.DateTimeFormat(locales, {
-      ...HOUR_AND_MINUTE,
-      ...(timeZone ? { timeZone } : {}),
-    }).format(new Date(endAt));
-  } catch {
-    // A locale or zone this engine rejects. No readout beats a broken one,
-    // and this must not throw into a render.
-    return null;
-  }
-
-  return { label, isExpired: now >= endAt };
+  return { label: formatDuration(endAt - now), isExpired: now >= endAt };
 }

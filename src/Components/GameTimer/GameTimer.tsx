@@ -2,21 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useGameTimer } from '../../Hooks/useGameTimer';
 import { useGlobalSettings } from '../../Hooks/useGlobalSettings';
 import { useRoundEnd } from '../../Hooks/useRoundEnd';
-import { planRoundEndReadout } from '../../Utils/tracking/roundEnd';
-
-const formatTime = (ms: number): string => {
-  const totalSeconds = Math.floor(ms / 1000);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  const pad = (n: number) => String(n).padStart(2, '0');
-
-  if (hours > 0) {
-    return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
-  }
-  return `${pad(minutes)}:${pad(seconds)}`;
-};
+import { formatDuration, planRoundEndReadout } from '../../Utils/tracking/roundEnd';
 
 const getBarColor = (progress: number): string => {
   // Green (120) → Yellow (60) → Red (0)
@@ -128,8 +114,7 @@ export const GameTimer = () => {
   if (roundEnd) {
     return (
       <div className="absolute top-0 left-0 right-0 z-10 flex justify-center pointer-events-none">
-        <div className="flex items-baseline gap-1.5 bg-black/70 rounded-b-lg px-3 py-1 text-white">
-          <span className="text-xs opacity-70">Ends</span>
+        <div className="bg-black/70 rounded-b-lg px-3 py-1 text-white">
           <span className="text-xl font-semibold tabular-nums tracking-tight">
             {roundEnd.label}
           </span>
@@ -165,7 +150,7 @@ export const GameTimer = () => {
           ${!isRunning ? 'opacity-100 animate-pulse' : ''}
         `}
       >
-        {formatTime(remainingMs)}
+        {formatDuration(remainingMs)}
         {!isRunning && (
           <span className="ml-1 uppercase tracking-wider text-[8px] opacity-75">
             Paused
