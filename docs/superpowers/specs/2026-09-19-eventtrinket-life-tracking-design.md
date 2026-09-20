@@ -941,6 +941,29 @@ Refusing to publish a score from a device with no history stops the wipe but
 leaves the new device permanently wrong, publishing 1-0 for a 1-1 match.
 Adoption is what makes the new device correct rather than merely harmless.
 
+### How the read is taken, and why not the listener
+
+The listener the two-writer guard uses cannot answer this. Its first event is
+usually this device's own write: `.info/connected` turns true before the
+node's first server value arrives, so the connect handler's snapshot goes out
+first, and the SDK raises that optimistic write to the listener straight away.
+Settling the question on a value this device invented is the wipe again.
+
+So the read is a one-shot `get` on the same connection -- no second socket,
+and it reads the server's value rather than the local view.
+
+That leaves one ordering hole, and it is closed in the writer rather than the
+reader. A full snapshot is a `set`, which replaces the node; a `set` carrying
+no `gs` therefore *deletes* the score the pending read is looking for. A write
+queued while offline is flushed ahead of an outstanding read, so this is
+reachable, not theoretical. Until the read resolves, the full snapshot merges
+instead: the same children, written with `update`, with explicit nulls for the
+two children a `set` would have dropped (`w` and `off`) and `gs` simply left
+alone. From the resolution onwards it is a `set` again, carrying the score.
+
+The rule this preserves is the one that matters: no write touches `gs` --
+neither writing it nor deleting it -- before the node has been read.
+
 ### What it does not cover
 
 Life totals are not adopted. A player moving to a new phone re-enters them,

@@ -3,6 +3,7 @@ import type { Player } from '../Types/Player';
 import type { GameScore } from '../Contexts/GlobalSettingsContext';
 import { liveNodeSchema, type SeatState } from '../Types/Tracking';
 import { diffSeats, toSeatScores, toSeatStates } from '../Utils/tracking/snapshot';
+import { planScoreAdoption } from '../Utils/tracking/scoreAdoption';
 import { createThrottle, type Throttle } from '../Utils/tracking/throttle';
 import { getTrackDatabase } from '../Utils/tracking/trackDb';
 
@@ -60,11 +61,18 @@ export function useGameTracker({
   players,
   winner,
   gameScore,
+  onAdoptScore,
 }: {
   gameId: string | null;
   players: Player[];
   winner: number | null;
   gameScore: GameScore;
+  /**
+   * Take this score, because the node already carried it. Spec 17: the hook
+   * can read the node but not set the app's score, so adoption needs the
+   * caller. Omitting it leaves the score read-only to tracking.
+   */
+  onAdoptScore?: (score: GameScore) => void;
 }): {
   status: TrackerStatus;
   lastSentAt: number | null;
@@ -88,6 +96,12 @@ export function useGameTracker({
   // score changes exactly when a game ends or is undone, and both of those
   // paths already run a full snapshot.
   const gameScoreRef = useRef<GameScore>(gameScore);
+  // Spec 17: false until this device has read the node once. Every write
+  // omits `gs` while it is false, so a device that has just opened the link
+  // cannot publish a score over one it has never looked at.
+  const scoreResolvedRef = useRef(false);
+  // In a ref so the caller's setter never reaches a dependency array.
+  const onAdoptScoreRef = useRef(onAdoptScore);
   const connectedRef = useRef(false);
   const stoppedRef = useRef(false);
   // Spec 8.9: t0 and wr must survive a reload, because every reconnect sends
@@ -110,6 +124,7 @@ export function useGameTracker({
   playersRef.current = players;
   winnerRef.current = winner;
   gameScoreRef.current = gameScore;
+  onAdoptScoreRef.current = onAdoptScore;
 
   // The end of the ladder. Every failure lands here: stop writing, say so
   // once, and stay silent. Never a retry loop against a rejecting rule.
@@ -134,6 +149,11 @@ export function useGameTracker({
       try {
         const seats = toSeatStates(playersRef.current);
         const nowMs = writer.serverNow();
+        // Spec 17. Until the node has been read once, this device does not
+        // know whether the match already stands at 1-1, so it publishes no
+        // score at all. A node without `gs` is safe: the board skips it and
+        // leaves its counters alone.
+        const resolved = scoreResolvedRef.current;
         const node: Record<string, unknown> = {
           v: 1,
           st: state,
@@ -141,16 +161,29 @@ export function useGameTracker({
           exp: nowMs + (state === 'ended' ? EXP_ENDED_MS : EXP_LIVE_MS),
           up: nowMs,
           wr: sessionRef.current,
-          gs: toSeatScores(gameScoreRef.current, seats.length),
           p: seats,
         };
+        if (resolved) {
+          node.gs = toSeatScores(gameScoreRef.current, seats.length);
+        }
         if (w !== null) {
           node.w = w;
         }
         t0Ref.current = node.t0 as number;
         localStorage.setItem(T0_KEY, `${t0GameIdRef.current}|${t0Ref.current}`);
 
-        await writer.set(node);
+        if (resolved) {
+          await writer.set(node);
+        } else {
+          // Merge, not replace. A `set` here carries no `gs`, so it would
+          // delete the very score the pending read exists to find -- and on
+          // this path the write usually wins that race, because
+          // `.info/connected` turns true before the node's first server
+          // value arrives, and a write queued while offline is flushed
+          // ahead of the read. The two nulls remove exactly the children a
+          // `set` would have dropped, so the node is otherwise identical.
+          await writer.update({ ...node, w: w ?? null, off: null });
+        }
         sentRef.current = seats;
         setLastSentAt(Date.now());
         setStatus('live');
@@ -211,6 +244,42 @@ export function useGameTracker({
     }
   }, [sendFull, stopTracking]);
 
+  // Spec 17. The one read that decides whether this device is joining a game
+  // already in progress. It runs once per connection, and it can adopt only
+  // once: the adopted score goes straight into gameScoreRef, so any later
+  // read sees a device that holds a score of its own and changes nothing.
+  const resolveScore = useCallback(
+    (nodeValue: unknown) => {
+      try {
+        const plan = planScoreAdoption({
+          resolved: scoreResolvedRef.current,
+          localScore: gameScoreRef.current,
+          nodeValue,
+        });
+        scoreResolvedRef.current = plan.resolved;
+
+        if (plan.adopt) {
+          // The ref as well as the caller's state: the send below reads it
+          // synchronously, long before React re-renders with the new score.
+          // Only the score is taken. Life totals are a live reading, not a
+          // result, so they stay whatever this device shows.
+          gameScoreRef.current = plan.adopt;
+          onAdoptScoreRef.current?.(plan.adopt);
+        }
+
+        // The node has been read, so this is the first write allowed to
+        // carry a score: the adopted one, or this device's own.
+        void sendFull(
+          winnerRef.current === null ? 'live' : 'ended',
+          winnerRef.current
+        );
+      } catch (error) {
+        stopTracking(error);
+      }
+    },
+    [sendFull, stopTracking]
+  );
+
   const forceUpdate = useCallback(() => {
     stoppedRef.current = false;
     if (writerRef.current) {
@@ -235,6 +304,10 @@ export function useGameTracker({
     setStatus('connecting');
     stoppedRef.current = false;
     sentRef.current = null;
+    // A new connection asks the question again. It can only answer "keep"
+    // the second time round, because the first answer left this device
+    // holding a score.
+    scoreResolvedRef.current = false;
 
     const cleanups: Array<() => void> = [];
 
@@ -248,7 +321,7 @@ export function useGameTracker({
           return;
         }
 
-        const { ref, onValue, onDisconnect, update, set } =
+        const { ref, onValue, onDisconnect, update, set, get } =
           await import('firebase/database');
         if (cancelled) return;
 
@@ -281,6 +354,23 @@ export function useGameTracker({
           THROTTLE_MS,
           () => void sendDiff()
         );
+
+        // Spec 17: read the node once before this device publishes any score.
+        // Nothing awaits it -- an offline device must still connect, write and
+        // keep counting. It simply never resolves, and so never publishes
+        // `gs`. It shares this connection, so it costs no second socket.
+        //
+        // A one-shot read rather than the listener below: that listener's
+        // first event can be this device's own optimistic write, which by
+        // definition carries no score, and settling the question on a value
+        // this device invented is exactly the wipe being cured.
+        void get(node)
+          .then((snap) => {
+            if (!cancelled) {
+              resolveScore(snap.val());
+            }
+          })
+          .catch(() => undefined);
 
         cleanups.push(
           onValue(ref(db, '.info/serverTimeOffset'), (snap) => {

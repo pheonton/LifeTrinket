@@ -36,6 +36,10 @@ export const Play = () => {
     players,
     winner,
     gameScore,
+    // Spec 17: a device opening the link for a match already in progress has
+    // no score of its own, and must take the one the node carries rather
+    // than publish 0-0 over a real tournament result.
+    onAdoptScore: setGameScore,
   });
 
   let gridLayout: GridLayout;
