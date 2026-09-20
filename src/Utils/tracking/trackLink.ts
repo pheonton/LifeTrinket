@@ -62,8 +62,12 @@ export const TRACKED_GAME_KEY = 'trackedGame';
  * this one is: the decision of whether a link is new has to be reached the
  * same way on every render pass. `clearStoredTrackLink` does the cleaning.
  */
-export function readStoredTrackLink(): TrackLink | null {
-  const saved = localStorage.getItem(TRACKED_GAME_KEY);
+export function readStoredTrackLink(
+  storage: Pick<Storage, 'getItem'> = typeof localStorage === 'undefined'
+    ? { getItem: () => null }
+    : localStorage
+): TrackLink | null {
+  const saved = storage.getItem(TRACKED_GAME_KEY);
   if (!saved) {
     return null;
   }
@@ -73,6 +77,33 @@ export function readStoredTrackLink(): TrackLink | null {
   } catch {
     return null;
   }
+}
+
+export type TrackEntry = { link: TrackLink; isNew: boolean };
+
+/**
+ * Which game this load is tracking, and whether it is one that still has to
+ * be built.
+ *
+ * Reading only, on purpose. StrictMode runs a memo factory twice, and a
+ * factory that stored the link and stripped the hash would answer the second
+ * run differently from the first -- no hash left to find, a stored link that
+ * was not there before -- and React keeps the second answer. That is a new
+ * link arriving as a resume, and a table that never gets built. The writes
+ * belong after the commit, and `App` does them in an effect.
+ */
+export function readTrackEntry(
+  storage?: Pick<Storage, 'getItem'>,
+  hash?: string
+): TrackEntry | null {
+  const stored = readStoredTrackLink(storage);
+  const fromUrl = getTrackLinkFromUrl(hash);
+
+  if (fromUrl) {
+    return { link: fromUrl, isNew: stored?.id !== fromUrl.id };
+  }
+
+  return stored ? { link: stored, isNew: false } : null;
 }
 
 export function storeTrackLink(link: TrackLink): void {

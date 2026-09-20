@@ -4,6 +4,7 @@ import {
   decodeTrackLink,
   getTrackLinkFromUrl,
   clearTrackLinkFromUrl,
+  readTrackEntry,
 } from './trackLink';
 import type { TrackLink } from '../../Types/Tracking';
 
@@ -114,5 +115,50 @@ describe('clearTrackLinkFromUrl', () => {
       { replaceState }
     );
     expect(replaceState).not.toHaveBeenCalled();
+  });
+});
+
+describe('readTrackEntry', () => {
+  // A bare object with only `getItem` proves purity at compile time (the
+  // type is `Pick<Storage, 'getItem'>`) and at run time: if the reader ever
+  // tried to write or delete, calling a method that does not exist here
+  // would throw and fail the test.
+  const readOnlyStorage = (value: string | null) => ({
+    getItem: () => value,
+  });
+
+  it('reports a fresh link as new on two consecutive calls, leaving storage and the hash untouched', () => {
+    const storage = readOnlyStorage(null);
+    const hash = `#track=${encodeTrackLink(link)}`;
+
+    expect(readTrackEntry(storage, hash)).toEqual({ link, isNew: true });
+    // Same inputs, same answer: nothing was consumed or mutated by the
+    // first call.
+    expect(readTrackEntry(storage, hash)).toEqual({ link, isNew: true });
+  });
+
+  it('reports a stored link with no hash as a resume', () => {
+    const storage = readOnlyStorage(JSON.stringify(link));
+
+    expect(readTrackEntry(storage, '')).toEqual({ link, isNew: false });
+  });
+
+  it('reports a hash whose id differs from the stored link as new', () => {
+    const storedLink: TrackLink = { ...link, id: 'AAAAAAAAAABBBBBBBBBB' };
+    const urlLink: TrackLink = { ...link, id: 'CCCCCCCCCCDDDDDDDDDD' };
+    const storage = readOnlyStorage(JSON.stringify(storedLink));
+    const hash = `#track=${encodeTrackLink(urlLink)}`;
+
+    expect(readTrackEntry(storage, hash)).toEqual({
+      link: urlLink,
+      isNew: true,
+    });
+  });
+
+  it('does not throw and does not delete a corrupt stored value', () => {
+    const storage = readOnlyStorage('{not json');
+
+    expect(() => readTrackEntry(storage, '')).not.toThrow();
+    expect(readTrackEntry(storage, '')).toBeNull();
   });
 });

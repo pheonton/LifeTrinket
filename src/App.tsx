@@ -9,35 +9,9 @@ import {
 import {
   clearStoredTrackLink,
   clearTrackLinkFromUrl,
-  getTrackLinkFromUrl,
-  readStoredTrackLink,
+  readTrackEntry,
   storeTrackLink,
 } from './Utils/tracking/trackLink';
-import type { TrackLink } from './Types/Tracking';
-
-type TrackEntry = { link: TrackLink; isNew: boolean };
-
-/**
- * Which game this load is tracking, and whether it is one that still has to
- * be built.
- *
- * Reading only, on purpose. StrictMode runs a memo factory twice, and a
- * factory that stored the link and stripped the hash would answer the second
- * run differently from the first -- no hash left to find, a stored link that
- * was not there before -- and React keeps the second answer. That is a new
- * link arriving as a resume, and a table that never gets built. The writes
- * belong after the commit, and `App` does them in an effect.
- */
-const readTrackEntry = (): TrackEntry | null => {
-  const stored = readStoredTrackLink();
-  const fromUrl = getTrackLinkFromUrl();
-
-  if (fromUrl) {
-    return { link: fromUrl, isNew: stored?.id !== fromUrl.id };
-  }
-
-  return stored ? { link: stored, isNew: false } : null;
-};
 
 const App = () => {
   // Check for shared state in URL during initialization
