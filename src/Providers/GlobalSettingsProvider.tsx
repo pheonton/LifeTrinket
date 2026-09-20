@@ -181,9 +181,20 @@ export const GlobalSettingsProvider = ({
   const [trackedGameId, setTrackedGameId] = useState<string | null>(
     trackLink?.id ?? null
   );
+  // The round clock this game follows, from the same link and held the same
+  // way. Absent from every link minted before the round-end feature, and
+  // absent from every link for a tournament whose organizer never starts a
+  // clock, which is why it is read as an optional field and never required.
+  const [trackedRoundId, setTrackedRoundId] = useState<string | null>(
+    trackLink?.r ?? null
+  );
   const clearTrackedGame = useCallback(() => {
     clearStoredTrackLink();
     setTrackedGameId(null);
+    // The link is gone, so the round it named is gone with it. Leaving the
+    // subscription up would keep a tournament's clock on the screen of a
+    // kitchen-table game started afterwards.
+    setTrackedRoundId(null);
   }, []);
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -389,6 +400,7 @@ export const GlobalSettingsProvider = ({
       addLifeHistoryEvent,
       clearLifeHistory,
       trackedGameId,
+      trackedRoundId,
       clearTrackedGame,
     };
   }, [
@@ -415,6 +427,7 @@ export const GlobalSettingsProvider = ({
     addLifeHistoryEvent,
     clearLifeHistory,
     trackedGameId,
+    trackedRoundId,
     clearTrackedGame,
   ]);
 

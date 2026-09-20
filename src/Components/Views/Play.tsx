@@ -182,7 +182,10 @@ export const Play = () => {
 
       <Players gridLayout={gridLayout} />
 
-      {settings.showTimer && <GameTimer />}
+      {/* Mounted whatever `showTimer` says: a tracked round end overrides
+          that preference, and only the component knows whether it has one.
+          It renders nothing at all otherwise. */}
+      <GameTimer />
 
       <TrackingChip
         status={tracker.status}
