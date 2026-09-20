@@ -124,8 +124,8 @@ export const GameTimer = () => {
         className="absolute left-0 right-0 z-10 flex justify-center pointer-events-none"
         style={{ top: 'calc(1vmax + 5vmin + 0.8vmin)' }}
       >
-        <div className="bg-black/70 rounded-lg px-3 py-1 text-white">
-          <span className="text-xl font-semibold tabular-nums tracking-tight">
+        <div className="bg-black/70 rounded-md px-2 py-0.5 text-white">
+          <span className="text-sm font-semibold tabular-nums tracking-tight">
             {roundEnd.label}
           </span>
         </div>
