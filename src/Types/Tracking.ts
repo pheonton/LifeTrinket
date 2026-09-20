@@ -33,6 +33,12 @@ export const liveNodeSchema = z.object({
   off: z.number().optional(),
   w: z.number().optional(),
   p: z.array(seatStateSchema),
+  /**
+   * Games won, seat-indexed, same order as `p`. Optional: a node written
+   * before this field existed has none, and the two-writer guard parses
+   * live nodes with this schema.
+   */
+  gs: z.array(z.number()).optional(),
 });
 
 export type LiveNode = z.infer<typeof liveNodeSchema>;

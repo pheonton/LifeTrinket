@@ -31,7 +31,12 @@ export const Play = () => {
   const [winner, setWinner] = useState<number | null>(null);
 
   // Idle and inert unless a track link started this game.
-  const tracker = useGameTracker({ gameId: trackedGameId, players, winner });
+  const tracker = useGameTracker({
+    gameId: trackedGameId,
+    players,
+    winner,
+    gameScore,
+  });
 
   let gridLayout: GridLayout;
   switch (players.length) {

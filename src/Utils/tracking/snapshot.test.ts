@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toSeatStates, diffSeats } from './snapshot';
+import { toSeatStates, diffSeats, toSeatScores } from './snapshot';
 import { CounterType, Rotation, type Player } from '../../Types/Player';
 
 const makePlayer = (over: Partial<Player> = {}): Player => ({
@@ -85,5 +85,23 @@ describe('diffSeats', () => {
 
   it('produces nothing for a field absent from both prev and next', () => {
     expect(diffSeats([{ l: 20 }], [{ l: 20 }])).toEqual({});
+  });
+});
+
+describe('toSeatScores', () => {
+  it('defaults every seat to 0 for an empty score', () => {
+    expect(toSeatScores({}, 2)).toEqual([0, 0]);
+  });
+
+  it('fills in only the seats present in a partial score', () => {
+    expect(toSeatScores({ 1: 2 }, 3)).toEqual([0, 2, 0]);
+  });
+
+  it('reports a full score for every seat', () => {
+    expect(toSeatScores({ 0: 1, 1: 2 }, 2)).toEqual([1, 2]);
+  });
+
+  it('ignores entries beyond the number of players', () => {
+    expect(toSeatScores({ 0: 1, 1: 2, 5: 9 }, 2)).toEqual([1, 2]);
   });
 });

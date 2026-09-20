@@ -1,5 +1,6 @@
 import { CounterType, type Player } from '../../Types/Player';
 import type { SeatState } from '../../Types/Tracking';
+import type { GameScore } from '../../Contexts/GlobalSettingsContext';
 
 const TRACKED_KEYS = ['l', 'poi', 'cmd'] as const;
 
@@ -26,6 +27,16 @@ export function toSeatStates(players: Player[]): SeatState[] {
 
     return seat;
   });
+}
+
+/**
+ * Builds the `gs` field the full snapshot carries: a dense, seat-indexed
+ * array of games won, one entry per player, defaulting to 0. `gameScore` is
+ * a sparse record keyed by player index, so a player who has not won a game
+ * yet has no entry at all.
+ */
+export function toSeatScores(gameScore: GameScore, playerCount: number): number[] {
+  return Array.from({ length: playerCount }, (_, index) => gameScore[index] ?? 0);
 }
 
 /**

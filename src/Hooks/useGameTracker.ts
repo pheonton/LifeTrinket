@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Player } from '../Types/Player';
+import type { GameScore } from '../Contexts/GlobalSettingsContext';
 import { liveNodeSchema, type SeatState } from '../Types/Tracking';
-import { diffSeats, toSeatStates } from '../Utils/tracking/snapshot';
+import { diffSeats, toSeatScores, toSeatStates } from '../Utils/tracking/snapshot';
 import { createThrottle, type Throttle } from '../Utils/tracking/throttle';
 import { getTrackDatabase } from '../Utils/tracking/trackDb';
 
@@ -58,10 +59,12 @@ export function useGameTracker({
   gameId,
   players,
   winner,
+  gameScore,
 }: {
   gameId: string | null;
   players: Player[];
   winner: number | null;
+  gameScore: GameScore;
 }): {
   status: TrackerStatus;
   lastSentAt: number | null;
@@ -81,6 +84,10 @@ export function useGameTracker({
   // the reconnect handler and the diff fallback. Both must see the current
   // winner, or they will publish a finished game as live.
   const winnerRef = useRef<number | null>(winner);
+  // Read only by sendFull's full snapshot. gs has no place in diffSeats: the
+  // score changes exactly when a game ends or is undone, and both of those
+  // paths already run a full snapshot.
+  const gameScoreRef = useRef<GameScore>(gameScore);
   const connectedRef = useRef(false);
   const stoppedRef = useRef(false);
   // Spec 8.9: t0 and wr must survive a reload, because every reconnect sends
@@ -102,6 +109,7 @@ export function useGameTracker({
 
   playersRef.current = players;
   winnerRef.current = winner;
+  gameScoreRef.current = gameScore;
 
   // The end of the ladder. Every failure lands here: stop writing, say so
   // once, and stay silent. Never a retry loop against a rejecting rule.
@@ -133,6 +141,7 @@ export function useGameTracker({
           exp: nowMs + (state === 'ended' ? EXP_ENDED_MS : EXP_LIVE_MS),
           up: nowMs,
           wr: sessionRef.current,
+          gs: toSeatScores(gameScoreRef.current, seats.length),
           p: seats,
         };
         if (w !== null) {
