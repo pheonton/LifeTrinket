@@ -748,10 +748,14 @@ Added after the first live run. A best-of-three match already tracks a game
 score in LifeTrinket, and the organizer's board should show it beside the life
 totals.
 
-**Display only.** EventTrinket shows the score. The organizer still enters the
-match result by hand with the existing counters. LifeTrinket never writes into
-tournament standings, so a stray tap on a player's phone cannot move a real
-result.
+**Superseded.** This section first specified display only. The user later asked
+for the score to feed the tournament's own win counters, and that is now the
+behaviour. Section 16 records the change and its cost.
+
+The original reasoning, kept because the risk it names is real: EventTrinket
+shows the score, the organizer still enters the match result by hand, and
+LifeTrinket never writes into tournament standings, so a stray tap on a
+player's phone cannot move a real result.
 
 ### The node gains one optional field
 
@@ -793,3 +797,46 @@ Adding it later is a deliberate, separate change.
 1. The database rules, with tests. Nothing may write `gs` until these allow it.
 2. LifeTrinket publishes it in `sendFull`.
 3. EventTrinket renders it, for example `19 – 19 (1–0)`.
+
+
+---
+
+## 16. The score feeds the tournament win counters
+
+Asked for after the first live run, replacing the display-only rule in section
+15. The organizer should not have to retype a score both apps already know.
+
+### What it does
+
+`gs` from the live node is written into `pairing.player1.wins` and
+`pairing.player2.wins`, through the same `handleUpdatePairingStatsInMatch` path
+the manual buttons already use. Those counters drive the standings.
+
+### The cost, stated plainly
+
+A stray tap on a player's phone now moves a real tournament result. So does a
+mis-tapped "next game". This is the risk display only was protecting against,
+and it is accepted deliberately.
+
+### The guards that keep it survivable
+
+1. **Write only when the value actually differs.** A re-render must not rewrite
+   the same number, or the effect loops.
+2. **Never exceed what the manual buttons allow.** They cap a player at 2 wins
+   and the pairing at 3 games. A synced value outside that range is dropped, not
+   clamped silently.
+3. **Leave a pairing alone once a draw is recorded.** LifeTrinket has no concept
+   of a draw, so its score cannot describe that pairing. The organizer owns it.
+4. **The organizer can still override.** The manual buttons keep working, and a
+   later identical `gs` does not undo their correction, because of guard 1.
+
+### The display becomes redundant
+
+The counters now show the score, so the readout stops repeating it. The life
+totals split into each player's own column, above that player's counter:
+
+```
+        P2        vs        P7
+        14                  20
+     [-] 0 [+]         [-] 1 [+]
+```
