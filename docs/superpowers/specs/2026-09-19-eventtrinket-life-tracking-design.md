@@ -1207,3 +1207,40 @@ The session id therefore also travels in the URL, as `/timer?session=<id>`.
 The parameter wins over the context value, so the projector publishes for
 the tournament named in its link rather than for whatever that browser last
 ran. A timer opened with neither publishes nothing, exactly as it does today.
+
+### 19.9 The round clock belongs to the round menu
+
+19.8 put the publish in `src/Timer/Timer.tsx`, the standalone timer. That was
+wrong, and the reason is the pause.
+
+That page has Pause, Resume and Stop. The published node carries `end` and
+nothing else, so a pause reaches no phone: every table keeps counting through
+the break and ends the round early by its length. The organizer's clock and
+the players' clocks disagree, and no player can tell.
+
+The rule this section follows: **if LifeTrinket cannot know about a control,
+that control must not govern the round.**
+
+So the round clock moves to the round menu, and it has no pause.
+
+**`/timer` keeps its own behavior and stops publishing.** It remains a plain
+standalone timer with Pause, Resume, Stop and `?minutes=`, for a clock that
+governs nothing. Removing the publish is what makes keeping the pause safe.
+
+**The round menu counts down to the published value.** It does not run its
+own clock beside the phones and hope the two agree. It subscribes to
+`/rounds/$sessionId`, exactly as a phone does, so the organizer and the room
+read one number. Agreement is then a property of the design rather than a
+thing that can drift.
+
+**Controls:** Start, and starting again. Starting again publishes a new `end`
+that every phone picks up within seconds. There is no third control, because
+there is nothing else the phones could be told about.
+
+**Placement:** a small readout above the contestants in `src/pages/Rounds.tsx`,
+where the organizer already is.
+
+**Fullscreen:** a button opens the countdown in its own window, the way the
+Standings button already does. The organizer keeps the board on one screen
+and the clock on the room's screen. The new window reads the same node, so it
+is another reader and never a second writer.
