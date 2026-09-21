@@ -27,6 +27,9 @@ const makePlayer = (over: Partial<Player> = {}): Player => ({
   hasLost: false,
   isSide: false,
   name: 'Player',
+  deckName: '',
+  commanderName: '',
+  partnerName: '',
   ...over,
 });
 

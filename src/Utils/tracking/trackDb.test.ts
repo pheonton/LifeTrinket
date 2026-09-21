@@ -85,8 +85,16 @@ describe('the shipped .env.production', () => {
     expect(key).toMatch(/^AIza[\w-]{20,}$/);
   });
 
-  it('still names the database it will talk to', () => {
-    expect(value('VITE_TRACK_DATABASE_URL')).toMatch(/^https:\/\/\S+$/);
-    expect(value('VITE_TRACK_PROJECT_ID')).toBe('draft-trinket');
+  // Upstream's own file names its `draft-trinket` project even with the key
+  // blank - a real database URL/project ID with only the key pending. This
+  // fork's copy is blank on all three, on purpose: populating just the key
+  // would make `isTrackingConfigured()` true against *upstream's* Firebase
+  // project, which we have no permission to write into. If a future merge
+  // from upstream brings their values back, this must catch it before a
+  // build ships with them.
+  it('names no database in this fork - tracking is fully unconfigured', () => {
+    expect(value('VITE_TRACK_DATABASE_URL')).toBe('');
+    expect(value('VITE_TRACK_PROJECT_ID')).toBe('');
+    expect(value('VITE_TRACK_API_KEY')).toBe('');
   });
 });
