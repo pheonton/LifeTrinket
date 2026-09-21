@@ -25,3 +25,6 @@ dist-ssr
 *.sw?
 
 .env
+
+# Screenshots and page snapshots written by browser automation
+.playwright-mcp/

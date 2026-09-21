@@ -3,6 +3,10 @@
 
 # Transitive packages allowed to run their install scripts (native builds).
 allowBuilds:
+  # Reviewed: writes a couple of small dist/postinstall.* stub files unless
+  # FIREBASE_WEBAPP_CONFIG is set (Firebase App Hosting auto-init, which we
+  # don't use); no network access otherwise. Official Google package.
+  '@firebase/util': true
   '@swc/core': true
   esbuild: true
   protobufjs: true

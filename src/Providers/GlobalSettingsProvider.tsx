@@ -25,13 +25,18 @@ import {
 } from '../Types/DeckStats';
 import { gte as semverGreaterThanOrEqual } from 'semver';
 import type { SharedGameState } from '../Types/SharedState';
+import type { TrackLink } from '../Types/Tracking';
+import { clearStoredTrackLink } from '../Utils/tracking/trackLink';
+import { clearKeys, keysToClearOnGoToStart } from '../Utils/storageScope';
 
 export const GlobalSettingsProvider = ({
   children,
   sharedState,
+  trackLink,
 }: {
   children: ReactNode;
   sharedState?: SharedGameState | null;
+  trackLink?: TrackLink | null;
 }) => {
   const analytics = useAnalytics();
   const metrics = useMetrics();
@@ -52,8 +57,8 @@ export const GlobalSettingsProvider = ({
 
   const savedPlaying = localStorage.getItem('playing');
   const [playing, setPlaying] = useState<boolean>(() => {
-    // If shared state exists, auto-start the game
-    if (sharedState) {
+    // Shared state and a track link both auto-start the game
+    if (sharedState || trackLink) {
       return true;
     }
     return savedPlaying ? savedPlaying === 'true' : false;
@@ -70,8 +75,8 @@ export const GlobalSettingsProvider = ({
 
   const savedShowPlay = localStorage.getItem('showPlay');
   const [showPlay, setShowPlay] = useState<boolean>(() => {
-    // If shared state exists, show the play view
-    if (sharedState) {
+    // Shared state and a track link both open the play view
+    if (sharedState || trackLink) {
       return true;
     }
     return savedShowPlay ? savedShowPlay === 'true' : false;
@@ -143,10 +148,12 @@ export const GlobalSettingsProvider = ({
     setGameScore(score);
     localStorage.setItem('gameScore', JSON.stringify(score));
   };
-  const resetGameScore = () => {
-    setGameScore({});
-    localStorage.removeItem('gameScore');
-  };
+
+  // Nothing here resets the score for a new tracked game. `main.tsx` clears
+  // every game-scoped key before React renders (see Utils/storageScope), so
+  // the lazy state above already reads an empty score, an empty transcript
+  // and a stopped timer -- one path for all of them, rather than one field
+  // remembered here and the rest forgotten.
 
   const savedLifeHistory = localStorage.getItem('lifeHistory');
   const [lifeHistory, setLifeHistory] = useState<LifeHistoryEvent[]>(() => {
@@ -220,6 +227,27 @@ export const GlobalSettingsProvider = ({
     });
   }, []);
 
+  // Held in state, not read from the link on every render, so that ending
+  // the tracked game stops the publishing without a reload.
+  const [trackedGameId, setTrackedGameId] = useState<string | null>(
+    trackLink?.id ?? null
+  );
+  // The round clock this game follows, from the same link and held the same
+  // way. Absent from every link minted before the round-end feature, and
+  // absent from every link for a tournament whose organizer never starts a
+  // clock, which is why it is read as an optional field and never required.
+  const [trackedRoundId, setTrackedRoundId] = useState<string | null>(
+    trackLink?.r ?? null
+  );
+  const clearTrackedGame = useCallback(() => {
+    clearStoredTrackLink();
+    setTrackedGameId(null);
+    // The link is gone, so the round it named is gone with it. Leaving the
+    // subscription up would keep a tournament's clock on the screen of a
+    // kitchen-table game started afterwards.
+    setTrackedRoundId(null);
+  }, []);
+
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
@@ -273,14 +301,10 @@ export const GlobalSettingsProvider = ({
 
   const ctxValue = useMemo((): GlobalSettingsContextType => {
     const removeLocalStorage = async () => {
-      localStorage.removeItem('initialGameSettings');
-      localStorage.removeItem('players');
-      localStorage.removeItem('playing');
-      localStorage.removeItem('showPlay');
-      localStorage.removeItem('preStartComplete');
-      localStorage.removeItem('gameScore');
-      localStorage.removeItem('timerStartedAt');
-      localStorage.removeItem('timerAccumulatedMs');
+      // The list lives in Utils/storageScope, next to the game-scoped keys it
+      // is derived from, so this path and a new game cannot drift apart.
+      clearKeys(keysToClearOnGoToStart());
+      clearTrackedGame();
 
       setPlaying(false);
       setShowPlay(false);
@@ -425,7 +449,6 @@ export const GlobalSettingsProvider = ({
       },
       gameScore,
       setGameScore: setGameScoreAndLocalStorage,
-      resetGameScore,
       lifeHistory,
       addLifeHistoryEvent,
       clearLifeHistory,
@@ -433,6 +456,9 @@ export const GlobalSettingsProvider = ({
       recordGame,
       clearDeckStats,
       deleteDeck,
+      trackedGameId,
+      trackedRoundId,
+      clearTrackedGame,
     };
   }, [
     isFullscreen,
@@ -461,6 +487,9 @@ export const GlobalSettingsProvider = ({
     recordGame,
     clearDeckStats,
     deleteDeck,
+    trackedGameId,
+    trackedRoundId,
+    clearTrackedGame,
   ]);
 
   return (

@@ -53,7 +53,6 @@ export type GlobalSettingsContextType = {
   saveCurrentGame: (currentGame: SavedGame) => void;
   gameScore: GameScore;
   setGameScore: (score: GameScore) => void;
-  resetGameScore: () => void;
   lifeHistory: LifeHistoryEvent[];
   addLifeHistoryEvent: (event: LifeHistoryEvent) => void;
   clearLifeHistory: () => void;
@@ -61,6 +60,15 @@ export type GlobalSettingsContextType = {
   recordGame: (players: Player[], winnerIndex: number) => void;
   clearDeckStats: () => void;
   deleteDeck: (normalizedName: string) => void;
+  /** The id of the game this device publishes life totals to, or null. */
+  trackedGameId: string | null;
+  /**
+   * The id of the round clock this game follows, or null. It names a node
+   * this device only ever reads: the tournament owns the round end.
+   */
+  trackedRoundId: string | null;
+  /** Stops publishing. A game that has been reset is no longer that game. */
+  clearTrackedGame: () => void;
 };
 
 export const GlobalSettingsContext =
