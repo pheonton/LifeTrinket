@@ -1,8 +1,18 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { Dialog } from './Dialog';
 import { useGlobalSettings } from '../../Hooks/useGlobalSettings';
 import { useAnalytics } from '../../Hooks/useAnalytics';
 import { DeckStat, deckWinRate } from '../../Types/DeckStats';
+import { deckStatsToCsv, parseDeckStatsCsv } from '../../Utils/deckStatsCsv';
+
+const secondaryButtonClass =
+  'px-3 py-1.5 text-sm border border-divider text-text-primary rounded-md hover:bg-background-paper transition-colors';
+
+const todayStamp = () => {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
 
 const formatPercent = (ratio: number) => `${Math.round(ratio * 100)}%`;
 
@@ -15,8 +25,10 @@ const formatAvgPod = (stat: DeckStat) => {
 export const DeckStatsDialog: React.FC<{
   dialogRef: React.MutableRefObject<HTMLDialogElement | null>;
 }> = ({ dialogRef }) => {
-  const { deckStats, clearDeckStats, deleteDeck } = useGlobalSettings();
+  const { deckStats, clearDeckStats, deleteDeck, replaceDeckStats } =
+    useGlobalSettings();
   const analytics = useAnalytics();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const rows = useMemo(() => {
     return Object.entries(deckStats)
@@ -36,6 +48,54 @@ export const DeckStatsDialog: React.FC<{
     }
   };
 
+  const handleExport = () => {
+    // The BOM makes Excel read the file as UTF-8 (umlauts in deck names).
+    const blob = new Blob(['\uFEFF', deckStatsToCsv(deckStats)], {
+      type: 'text/csv;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `lifetrinket-deck-stats-${todayStamp()}.csv`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const handleImportFile = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    // Reset so picking the same file again still fires onChange.
+    event.target.value = '';
+    if (!file) return;
+
+    const result = parseDeckStatsCsv(await file.text());
+    if (!result.ok) {
+      alert(`Couldn't import ${file.name}:\n\n${result.error}`);
+      return;
+    }
+
+    const count = Object.keys(result.stats).length;
+    if (
+      rows.length > 0 &&
+      !confirm(
+        `Replace the stats for ${rows.length} ${rows.length === 1 ? 'deck' : 'decks'} on this device with the ${count} ${count === 1 ? 'deck' : 'decks'} in ${file.name}?`
+      )
+    ) {
+      return;
+    }
+    replaceDeckStats(result.stats);
+  };
+
+  const importButton = (
+    <button
+      onClick={() => fileInputRef.current?.click()}
+      className={secondaryButtonClass}
+    >
+      Import
+    </button>
+  );
+
   const handleDelete = (key: string, name: string) => {
     if (confirm(`Delete stats for "${name}"?`)) {
       // `key` is already the normalized deck name (deckStats is keyed by it).
@@ -46,6 +106,13 @@ export const DeckStatsDialog: React.FC<{
   return (
     <Dialog id="deck-stats-dialog" title="Deck Stats" dialogRef={dialogRef}>
       <div className="flex flex-col gap-4 py-4">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,text/csv"
+          onChange={handleImportFile}
+          className="hidden"
+        />
         {rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <svg
@@ -67,6 +134,7 @@ export const DeckStatsDialog: React.FC<{
               Name a deck in a player&apos;s menu, then finish a game with the
               match score enabled.
             </p>
+            {importButton}
           </div>
         ) : (
           <>
@@ -74,12 +142,18 @@ export const DeckStatsDialog: React.FC<{
               <p className="text-sm text-text-secondary">
                 {rows.length} {rows.length === 1 ? 'deck' : 'decks'}
               </p>
-              <button
-                onClick={handleClearAll}
-                className="px-3 py-1.5 text-sm bg-primary-main text-white rounded-md hover:bg-primary-dark transition-colors"
-              >
-                Clear All
-              </button>
+              <div className="flex gap-2">
+                <button onClick={handleExport} className={secondaryButtonClass}>
+                  Export
+                </button>
+                {importButton}
+                <button
+                  onClick={handleClearAll}
+                  className="px-3 py-1.5 text-sm bg-primary-main text-white rounded-md hover:bg-primary-dark transition-colors"
+                >
+                  Clear All
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -144,7 +218,9 @@ export const DeckStatsDialog: React.FC<{
                 <strong className="text-text-primary">Opp</strong> total
                 opponents faced across all games,{' '}
                 <strong className="text-text-primary">Pod</strong> average
-                players per game. Stats are stored only on this device.
+                players per game. Stats are stored only on this device. Export
+                them as a CSV to back them up or fix them in a spreadsheet;
+                importing a CSV replaces all stats.
               </p>
             </div>
           </>

@@ -268,8 +268,15 @@ Cross-game statistics keyed by deck name, persisted in `localStorage` under
 - **Viewing**: `DeckStatsDialog` (`src/Components/Dialogs/DeckStatsDialog.tsx`),
   opened from the bar-chart button on the start menu. Supports per-deck delete
   and clear-all.
-- **State**: `deckStats` / `recordGame` / `clearDeckStats` / `deleteDeck` on
-  `GlobalSettingsContext`, implemented in `GlobalSettingsProvider`.
+- **Export / import**: CSV via `src/Utils/deckStatsCsv.ts` (columns `deck,
+  games, wins, losses, opponents_faced, last_played`), for backups and fixing
+  stats in a spreadsheet. Import replaces all stats (after a confirm), matches
+  columns by header name, accepts `,`/`;`/tab delimiters, a BOM and ISO or
+  German dates, and rejects the whole file on any bad row (non-integer counts,
+  `wins + losses ≠ games`, duplicate decks) with a row-numbered message.
+- **State**: `deckStats` / `recordGame` / `clearDeckStats` / `deleteDeck` /
+  `replaceDeckStats` on `GlobalSettingsContext`, implemented in
+  `GlobalSettingsProvider`.
 
 ## Commander Art
 

@@ -60,6 +60,7 @@ export type GlobalSettingsContextType = {
   recordGame: (players: Player[], winnerIndex: number) => void;
   clearDeckStats: () => void;
   deleteDeck: (normalizedName: string) => void;
+  replaceDeckStats: (stats: DeckStats) => void;
   /** The id of the game this device publishes life totals to, or null. */
   trackedGameId: string | null;
   /**
