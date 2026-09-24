@@ -132,6 +132,8 @@ export const PlayersProvider = ({
     localStorage.setItem('players', JSON.stringify(players));
   }, [players]);
 
+  const [gameResetCount, setGameResetCount] = useState(0);
+
   const ctxValue = useMemo((): PlayersContextType => {
     const updatePlayer = (updatedPlayer: Player) => {
       const updatedPlayers = players.map((player) =>
@@ -187,6 +189,7 @@ export const PlayersProvider = ({
         updatePlayer(player);
       });
       localStorage.setItem('playing', 'false');
+      setGameResetCount((count) => count + 1);
     };
 
     return {
@@ -195,10 +198,16 @@ export const PlayersProvider = ({
       updatePlayer,
       updateLifeTotal,
       resetCurrentGame,
+      gameResetCount,
       startingPlayerIndex,
       setStartingPlayerIndex: setStartingPlayerIndexAndLocalStorage,
     };
-  }, [players, startingPlayerIndex, setStartingPlayerIndexAndLocalStorage]);
+  }, [
+    players,
+    gameResetCount,
+    startingPlayerIndex,
+    setStartingPlayerIndexAndLocalStorage,
+  ]);
 
   return (
     <PlayersContext.Provider value={ctxValue}>

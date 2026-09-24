@@ -18,7 +18,13 @@ type GridTemplateAreasKeys = keyof typeof twGridTemplateAreas;
 export type GridLayout = `grid-areas-${GridTemplateAreasKeys}`;
 
 export const Play = () => {
-  const { players, setPlayers, resetCurrentGame, setStartingPlayerIndex } = usePlayers();
+  const {
+    players,
+    setPlayers,
+    resetCurrentGame,
+    gameResetCount,
+    setStartingPlayerIndex,
+  } = usePlayers();
   const {
     initialGameSettings,
     playing,
@@ -30,6 +36,20 @@ export const Play = () => {
     trackedGameId,
   } = useGlobalSettings();
   const [winner, setWinner] = useState<number | null>(null);
+  // "Close" on the end screen hands the finished game back to the players, so
+  // it can end - and be offered for saving - again. Remember which game was
+  // saved so the end screen doesn't default to saving it twice.
+  const [savedGameResetCount, setSavedGameResetCount] = useState<
+    number | null
+  >(null);
+  const alreadySaved = savedGameResetCount === gameResetCount;
+  const hasDeckNames = players.some((p) => p.deckName.trim() !== '');
+
+  const saveGameIfChosen = (save: boolean) => {
+    if (winner === null || !save) return;
+    recordGame(players, winner);
+    setSavedGameResetCount(gameResetCount);
+  };
 
   // Idle and inert unless a track link started this game.
   const tracker = useGameTracker({
@@ -136,11 +156,10 @@ export const Play = () => {
     }
   }, [players, winner, settings.showMatchScore]);
 
-  const handleStartNextGame = () => {
+  const handleStartNextGame = (save: boolean) => {
     if (winner === null) return;
 
-    // Record deck stats for the finished game
-    recordGame(players, winner);
+    saveGameIfChosen(save);
 
     // Update score
     const newScore = { ...gameScore };
@@ -156,11 +175,10 @@ export const Play = () => {
     setWinner(null);
   };
 
-  const handleStay = () => {
+  const handleStay = (save: boolean) => {
     if (winner === null) return;
 
-    // Record deck stats for the finished game
-    recordGame(players, winner);
+    saveGameIfChosen(save);
 
     // Update score
     const newScore = { ...gameScore };
@@ -208,6 +226,8 @@ export const Play = () => {
       {winner !== null && (
         <GameOver
           winner={players[winner]}
+          canSave={hasDeckNames}
+          alreadySaved={alreadySaved}
           onStartNextGame={handleStartNextGame}
           onStay={handleStay}
         />

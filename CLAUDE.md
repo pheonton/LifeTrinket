@@ -253,10 +253,14 @@ Cross-game statistics keyed by deck name, persisted in `localStorage` under
   chips of previously-used deck names (from `deckStats` plus decks the other
   players in this game picked), most-recently-played first, and saves on close.
   The name lives on `Player.deckName` and persists across games within a match.
-- **Recording**: `Play.tsx` calls `recordGame(players, winnerIndex)` from both
-  `<GameOver>` exit handlers. Only runs when `settings.showMatchScore` is on and
-  there are ≥2 players (that's what triggers game-over detection). Games
-  abandoned via reset / back-to-start are not recorded.
+- **Recording**: `<GameOver>` shows a "Save to deck stats" toggle (only when
+  some seat has a deck name); `Play.tsx` calls `recordGame(players, winnerIndex)`
+  from either exit handler only if it's on. "Close" hands the finished game back
+  to the table, so it can end again: `Play` remembers the `gameResetCount`
+  (bumped by `PlayersProvider.resetCurrentGame`) it last saved under, and the
+  toggle defaults to off with a hint when the same game ends a second time.
+  Game-over detection only runs when `settings.showMatchScore` is on and there
+  are ≥2 players. Games abandoned via reset / back-to-start are not recorded.
 - **Aggregation**: `recordGameToDeckStats` in `src/Types/DeckStats.ts` is a pure
   fold. Blank deck names are ignored; seats sharing a normalized name count as
   one deck for that game. Tracks `gamesPlayed`, `wins`, `losses`,

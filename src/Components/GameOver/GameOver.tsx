@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { twc } from 'react-twc';
 import { Player } from '../../Types/Player';
+import { ToggleButton } from '../Misc/ToggleButton';
 
 const Overlay = twc.div`
   fixed top-0 left-0 w-[100dvmax] h-[100dvmin]
@@ -33,6 +35,15 @@ const WinnerName = twc.div`
   mb-0
 `;
 
+const SaveRow = twc.div`
+  flex items-center justify-between gap-4
+  text-[3.5vmin] text-text-primary
+`;
+
+const SaveHint = twc.p`
+  -mt-5 text-[2.8vmin] text-text-secondary
+`;
+
 const PrimaryButton = twc.button`
   py-[2vmin] px-[3vmin] rounded-xl
   text-[4vmin] font-semibold
@@ -57,15 +68,23 @@ const SecondaryButton = twc.button`
 
 type GameOverProps = {
   winner: Player;
-  onStartNextGame: () => void;
-  onStay: () => void;
+  // False when no seat has a deck name: there would be nothing to save.
+  canSave: boolean;
+  alreadySaved: boolean;
+  onStartNextGame: (save: boolean) => void;
+  onStay: (save: boolean) => void;
 };
 
 export const GameOver = ({
   winner,
+  canSave,
+  alreadySaved,
   onStartNextGame,
   onStay,
 }: GameOverProps) => {
+  const [save, setSave] = useState(!alreadySaved);
+  const shouldSave = canSave && save;
+
   return (
     <Overlay>
       <Modal>
@@ -73,11 +92,28 @@ export const GameOver = ({
         <WinnerName style={{ backgroundColor: winner.color }}>
           {winner.name || `Player ${winner.index + 1}`}
         </WinnerName>
+        {canSave && (
+          <>
+            <SaveRow>
+              <span>Save to deck stats</span>
+              <ToggleButton
+                checked={save}
+                onChange={() => setSave((prev) => !prev)}
+              />
+            </SaveRow>
+            {alreadySaved && (
+              <SaveHint>
+                This game was already saved. Only save again if it's a new
+                game.
+              </SaveHint>
+            )}
+          </>
+        )}
         <ButtonContainer>
-          <SecondaryButton onClick={onStartNextGame}>
+          <SecondaryButton onClick={() => onStartNextGame(shouldSave)}>
             Start Next Game
           </SecondaryButton>
-          <PrimaryButton onClick={onStay}>Close</PrimaryButton>
+          <PrimaryButton onClick={() => onStay(shouldSave)}>Close</PrimaryButton>
         </ButtonContainer>
       </Modal>
     </Overlay>

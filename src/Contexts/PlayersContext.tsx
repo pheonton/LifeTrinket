@@ -7,6 +7,8 @@ export type PlayersContextType = {
   updatePlayer: (updatedPlayer: Player) => void;
   updateLifeTotal: (player: Player, updatedLifeTotal: number) => number;
   resetCurrentGame: () => void;
+  // Bumped by every resetCurrentGame, so callers can tell one game from the next.
+  gameResetCount: number;
   startingPlayerIndex: number;
   setStartingPlayerIndex: (index: number) => void;
 };
